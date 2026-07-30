@@ -1,4 +1,3 @@
-import { BottomNav } from '@/components/ui'
 import { EmptyState } from '@/components/ui'
 import { Ribbon } from '@/components/ui'
 
@@ -35,7 +34,6 @@ export default function BaylohanPage() {
           icon={<FloorIcon />}
         />
       </main>
-      <BottomNav />
     </>
   )
 }
