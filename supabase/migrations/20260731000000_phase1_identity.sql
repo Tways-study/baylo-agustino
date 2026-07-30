@@ -157,6 +157,9 @@ begin
 end;
 $$;
 
+-- Grant execute so authenticated clients can call this RPC
+grant execute on function public.complete_onboarding(uuid, text, text, smallint, text, integer) to authenticated;
+
 -- ═══ Storage: avatars bucket ═══
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values (
