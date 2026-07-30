@@ -132,7 +132,7 @@ Progress indicator: step dots (1–5) at top, current step highlighted in crimso
 ### Step 5 — House rules
 
 - Label: "The rules of the floor."
-- Scrollable list of house rules (sourced from `HOUSE_RULES_V1` constant)
+- Scrollable list of house rules (sourced from `HOUSE_RULES_V1` constant in `lib/auth/house-rules.ts`)
 - Checkbox: "I've read these and I'm in."
 - On submit:
   1. Upsert `profiles` row with all collected data, set `verified_at = now()`
@@ -352,6 +352,7 @@ lib/
     actions.ts       — sendOtp(), verifyOtp(), completeOnboarding() Server Actions
     schemas.ts       — Zod schemas for all auth inputs
     session.ts       — getAuthUser() server helper (typed, throws if no session)
+    house-rules.ts   — HOUSE_RULES_V1 constant (array of rule strings, versioned)
 ```
 
 ---
