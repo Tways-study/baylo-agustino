@@ -1,0 +1,140 @@
+@import 'tailwindcss';
+
+/* ═══════════════════════════════════════════════
+   BAYLO AGUSTINO — Design tokens
+   Stamped Heraldry direction
+   Do not deviate from these values.
+   ═══════════════════════════════════════════════ */
+
+@theme {
+  /* Ink palette */
+  --color-ink: #131010;
+  --color-ink-70: #4a4340;
+  --color-ink-45: #7c7370;
+
+  /* Brand palette */
+  --color-crimson: #cc0000;
+  --color-crimson-deep: #7e0b16;
+  --color-gold: #ffcc00;
+  --color-gold-deep: #b98b00;
+
+  /* Surface palette */
+  --color-paper: #ede3d0;
+  --color-paper-dim: #e2d6be;
+  --color-card: #fbf7ef;
+
+  /* Typography */
+  --font-display: var(--font-bricolage);
+  --font-body: var(--font-jakarta);
+  --font-mono: var(--font-plex-mono);
+
+  /* Radius */
+  --radius: 4px;
+}
+
+/* Raw CSS custom properties for use in arbitrary CSS */
+:root {
+  --ink: #131010;
+  --ink-70: #4a4340;
+  --ink-45: #7c7370;
+  --crimson: #cc0000;
+  --crimson-deep: #7e0b16;
+  --gold: #ffcc00;
+  --gold-deep: #b98b00;
+  --paper: #ede3d0;
+  --paper-dim: #e2d6be;
+  --card: #fbf7ef;
+  --radius: 4px;
+  --stroke: 1.5px solid var(--ink);
+  --shadow-hard: 3px 3px 0 var(--ink);
+}
+
+/* ═══════════════════════════════════════════════
+   Base resets
+   ═══════════════════════════════════════════════ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body), 'Plus Jakarta Sans', sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  /* Safe-area insets for notched devices */
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Page bottom padding to clear the fixed BottomNav */
+main {
+  padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+}
+
+/* Focus visible — crimson ring, never the default */
+:focus-visible {
+  outline: 2px solid var(--crimson);
+  outline-offset: 2px;
+}
+
+/* Remove focus ring for mouse/touch */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* ═══════════════════════════════════════════════
+   Typography utilities
+   ═══════════════════════════════════════════════ */
+
+.font-display {
+  font-family: var(--font-display), 'Bricolage Grotesque', sans-serif;
+  letter-spacing: -0.03em;
+}
+
+.font-mono-utility {
+  font-family: var(--font-mono), 'IBM Plex Mono', monospace;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* ═══════════════════════════════════════════════
+   Shared structural utilities
+   ═══════════════════════════════════════════════ */
+
+.outlined {
+  border: var(--stroke);
+}
+
+.shadow-hard {
+  box-shadow: var(--shadow-hard);
+}
+
+/* Swallowtail clip — applied by Ribbon component */
+.clip-swallowtail {
+  clip-path: polygon(
+    0% 0%,
+    calc(100% - 12px) 0%,
+    100% 50%,
+    calc(100% - 12px) 100%,
+    0% 100%,
+    12px 50%
+  );
+}
+
+/* Perforated divider — applied by Chit component */
+.perforated {
+  border-style: dashed;
+  border-color: var(--ink);
+  border-width: 1.5px;
+}

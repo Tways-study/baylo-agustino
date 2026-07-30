@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <rect width="192" height="192" fill="#CC0000"/>
+  <rect x="4" y="4" width="184" height="184" fill="none" stroke="#FFCC00" stroke-width="3.84"/>
+  <text
+    x="50%"
+    y="55%"
+    dominant-baseline="middle"
+    text-anchor="middle"
+    font-family="monospace"
+    font-weight="bold"
+    font-size="58"
+    letter-spacing="5"
+    fill="#FFCC00"
+  >BA</text>
+</svg>

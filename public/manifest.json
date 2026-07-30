@@ -1,0 +1,25 @@
+{
+  "name": "Baylo Agustino",
+  "short_name": "Baylo",
+  "description": "Campus trading floor for Agustinians. Swap, sell, or give — sa sulod lang sang campus.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#CC0000",
+  "background_color": "#EDE3D0",
+  "categories": ["shopping", "social"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

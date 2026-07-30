@@ -1,0 +1,48 @@
+{
+  "name": "baylo-agustino",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "test": "vitest",
+    "test:e2e": "playwright test",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^3.9.0",
+    "@supabase/ssr": "^0.6.1",
+    "@supabase/supabase-js": "^2.46.1",
+    "browser-image-compression": "^2.0.2",
+    "framer-motion": "^12.0.0",
+    "next": "15.5.22",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-hook-form": "^7.54.0",
+    "server-only": "^0.0.1",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.6",
+    "@playwright/test": "^1.49.0",
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "@vitest/ui": "^2.1.0",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.22",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.10",
+    "prettier": "^3.4.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5",
+    "vitest": "^2.1.0"
+  }
+}
