@@ -25,7 +25,7 @@ function StepDots({ current }: { current: number }) {
           style={{
             width: i === current ? '20px' : '8px',
             height: '8px',
-            borderRadius: '4px',
+            borderRadius: 'var(--radius)',
             backgroundColor: i === current ? 'var(--crimson)' : 'var(--paper-dim)',
             border: 'var(--stroke)',
             transition: 'width 0.2s ease',
