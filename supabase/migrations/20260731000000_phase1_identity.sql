@@ -96,7 +96,7 @@ language sql
 security definer
 set search_path = ''
 as $$
-  select email like '%@usa.edu.ph'
+  select split_part(email, '@', 2) = 'usa.edu.ph'
 $$;
 
 -- Trigger function
@@ -121,7 +121,6 @@ create trigger enforce_email_domain_on_insert
 -- ═══ complete_onboarding RPC ═══
 -- Runs as SECURITY DEFINER so it can write verified_at (restricted column).
 create or replace function public.complete_onboarding(
-  p_user_id uuid,
   p_display_name text,
   p_program text,
   p_year_level smallint,
@@ -134,15 +133,10 @@ security definer
 set search_path = ''
 as $$
 begin
-  -- Guard: caller must be the target user
-  if auth.uid() <> p_user_id then
-    raise exception 'Unauthorized.';
-  end if;
-
   insert into public.profiles (
     id, display_name, program, year_level, avatar_url, verified_at
   ) values (
-    p_user_id, p_display_name, p_program, p_year_level, p_avatar_url, now()
+    auth.uid(), p_display_name, p_program, p_year_level, p_avatar_url, now()
   )
   on conflict (id) do update set
     display_name = excluded.display_name,
@@ -152,13 +146,13 @@ begin
     verified_at = coalesce(profiles.verified_at, now());
 
   insert into public.policy_acceptances (user_id, policy_version)
-  values (p_user_id, p_policy_version)
+  values (auth.uid(), p_policy_version)
   on conflict (user_id, policy_version) do nothing;
 end;
 $$;
 
 -- Grant execute so authenticated clients can call this RPC
-grant execute on function public.complete_onboarding(uuid, text, text, smallint, text, integer) to authenticated;
+grant execute on function public.complete_onboarding(text, text, smallint, text, integer) to authenticated;
 
 -- ═══ Storage: avatars bucket ═══
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
@@ -181,6 +175,10 @@ create policy "users upload own avatar"
 create policy "users update own avatar"
   on storage.objects for update to authenticated
   using (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  )
+  with check (
     bucket_id = 'avatars'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
