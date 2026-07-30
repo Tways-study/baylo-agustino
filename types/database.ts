@@ -39,6 +39,13 @@ export interface Database {
           avatar_url?: string | null
           bio?: string | null
         }
+        Relationships: Array<{
+          foreignKeyName: string
+          columns: string[]
+          isOneToOne?: boolean
+          referencedRelation: string
+          referencedColumns: string[]
+        }>
       }
       policy_acceptances: {
         Row: {
@@ -53,11 +60,25 @@ export interface Database {
           accepted_at?: string
         }
         Update: Record<string, never>
+        Relationships: Array<{
+          foreignKeyName: string
+          columns: string[]
+          isOneToOne?: boolean
+          referencedRelation: string
+          referencedColumns: string[]
+        }>
       }
       blocks: {
         Row: { blocker_id: string; blocked_id: string }
         Insert: { blocker_id: string; blocked_id: string }
         Update: Record<string, never>
+        Relationships: Array<{
+          foreignKeyName: string
+          columns: string[]
+          isOneToOne?: boolean
+          referencedRelation: string
+          referencedColumns: string[]
+        }>
       }
       meetup_spots: {
         Row: {
@@ -79,6 +100,13 @@ export interface Database {
           is_camera_covered?: boolean
           active?: boolean
         }
+        Relationships: Array<{
+          foreignKeyName: string
+          columns: string[]
+          isOneToOne?: boolean
+          referencedRelation: string
+          referencedColumns: string[]
+        }>
       }
     }
     Views: Record<string, never>
@@ -90,9 +118,9 @@ export interface Database {
       complete_onboarding: {
         Args: {
           p_display_name: string
-          p_program: string
-          p_year_level: number
-          p_avatar_url: string
+          p_program: string | null
+          p_year_level: number | null
+          p_avatar_url: string | null
           p_policy_version: number
         }
         Returns: undefined

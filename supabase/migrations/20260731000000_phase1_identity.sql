@@ -50,8 +50,10 @@ alter table public.profiles enable row level security;
 -- They are set only by triggers and service-role functions.
 revoke update (verified_at, trust_score, show_up_rate, is_suspended, completed_deals)
   on public.profiles from authenticated;
+revoke insert (verified_at, trust_score, show_up_rate, is_suspended, completed_deals)
+  on public.profiles from authenticated;
 
-create policy "profiles readable by verified members"
+create policy "profiles readable by authenticated"
   on public.profiles for select
   using (
     auth.uid() is not null
@@ -96,7 +98,7 @@ language sql
 security definer
 set search_path = ''
 as $$
-  select split_part(email, '@', 2) = 'usa.edu.ph'
+  select email ~* '^[^@]+@usa\.edu\.ph$'
 $$;
 
 -- Trigger function
