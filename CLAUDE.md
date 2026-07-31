@@ -77,7 +77,7 @@ Sentence case. Active verbs. Local register where natural — **Baylohan** (the 
 
 - `strict: true`, `noUncheckedIndexedAccess: true`, `verbatimModuleSyntax: true`
 - No `any`. Zero tolerance. ESLint enforces this.
-- Zod schemas in `lib/schemas/` are the single source of truth for every external boundary. Inferred types flow to both client form and server action. No unvalidated input reaches business logic.
+- Zod schemas live colocated per domain (`lib/auth/schemas.ts`, `lib/listings/schemas.ts`, …), not in one flat `lib/schemas/`. They are the single source of truth for every external boundary in that domain. Inferred types flow to both client form and server action. No unvalidated input reaches business logic.
 
 ### Security
 
@@ -108,9 +108,9 @@ Sentence case. Active verbs. Local register where natural — **Baylohan** (the 
 
 Implement one phase at a time. Do not start Phase N+1 until Phase N acceptance criteria pass.
 
-- **Phase 0** — Foundations & design system (current)
+- **Phase 0** — Foundations & design system
 - **Phase 1** — Identity & verification
-- **Phase 2** — Listings
+- **Phase 2** — Listings (current)
 - **Phase 3** — Discovery
 - **Phase 4** — Offer engine ★ (highest risk, budget accordingly)
 - **Phase 5** — Deal room
