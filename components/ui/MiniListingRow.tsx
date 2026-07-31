@@ -55,8 +55,8 @@ export function MiniListingRow({
           backgroundColor: 'var(--paper-dim)',
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         {imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={imageUrl}
             alt=""
