@@ -295,6 +295,7 @@ export type ListingStatus = 'draft' | 'active' | 'reserved' | 'completed' | 'arc
 
 export type ProfileRow = Database['public']['Tables']['profiles']['Row']
 export type ProfileInsert = Database['public']['Tables']['profiles']['Insert']
+export type MeetupSpotRow = Database['public']['Tables']['meetup_spots']['Row']
 export type CategoryRow = Database['public']['Tables']['categories']['Row']
 export type ListingRow = Database['public']['Tables']['listings']['Row']
 export type ListingImageRow = Database['public']['Tables']['listing_images']['Row']

@@ -265,6 +265,7 @@ export function ListingDetailsFields({
               <div key={i} style={{ display: 'flex', gap: '0.5rem' }}>
                 <input
                   type="text"
+                  aria-label={i === 0 ? WANTS_LABEL.swap : `Additional want ${i + 1}`}
                   maxLength={80}
                   value={want}
                   onChange={(e) => setWant(i, e.target.value)}
