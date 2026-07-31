@@ -108,6 +108,121 @@ export interface Database {
           referencedColumns: string[]
         }>
       }
+      categories: {
+        Row: {
+          id: number
+          slug: string
+          name: string
+          position: number
+        }
+        Insert: {
+          slug: string
+          name: string
+          position?: number
+        }
+        Update: {
+          slug?: string
+          name?: string
+          position?: number
+        }
+        Relationships: Array<{
+          foreignKeyName: string
+          columns: string[]
+          isOneToOne?: boolean
+          referencedRelation: string
+          referencedColumns: string[]
+        }>
+      }
+      listings: {
+        Row: {
+          id: string
+          code: string
+          owner_id: string
+          intent: ListingIntent
+          title: string
+          description: string | null
+          category_id: number | null
+          condition: string | null
+          ask_centavos: number | null
+          accepts_cash: boolean
+          status: ListingStatus
+          meetup_spot_id: number | null
+          search_tsv: string
+          view_count: number
+          created_at: string
+          bumped_at: string
+          expires_at: string
+        }
+        Insert: {
+          id?: string
+          code: string
+          owner_id: string
+          intent: ListingIntent
+          title: string
+          description?: string | null
+          category_id?: number | null
+          condition?: string | null
+          ask_centavos?: number | null
+          accepts_cash?: boolean
+          status?: ListingStatus
+          meetup_spot_id?: number | null
+          view_count?: number
+          created_at?: string
+          bumped_at?: string
+          expires_at?: string
+        }
+        Update: Record<string, never>
+        Relationships: Array<{
+          foreignKeyName: string
+          columns: string[]
+          isOneToOne?: boolean
+          referencedRelation: string
+          referencedColumns: string[]
+        }>
+      }
+      listing_images: {
+        Row: {
+          id: string
+          listing_id: string
+          storage_path: string
+          position: number
+        }
+        Insert: {
+          id?: string
+          listing_id: string
+          storage_path: string
+          position?: number
+        }
+        Update: Record<string, never>
+        Relationships: Array<{
+          foreignKeyName: string
+          columns: string[]
+          isOneToOne?: boolean
+          referencedRelation: string
+          referencedColumns: string[]
+        }>
+      }
+      listing_wants: {
+        Row: {
+          id: number
+          listing_id: string
+          label: string
+          position: number
+        }
+        Insert: {
+          listing_id: string
+          label: string
+          position?: number
+        }
+        Update: Record<string, never>
+        Relationships: Array<{
+          foreignKeyName: string
+          columns: string[]
+          isOneToOne?: boolean
+          referencedRelation: string
+          referencedColumns: string[]
+        }>
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -125,10 +240,62 @@ export interface Database {
         }
         Returns: undefined
       }
+      create_listing: {
+        Args: {
+          p_id: string
+          p_intent: ListingIntent
+          p_title: string
+          p_description: string | null
+          p_category_id: number | null
+          p_condition: string | null
+          p_ask_centavos: number | null
+          p_accepts_cash: boolean | null
+          p_meetup_spot_id: number | null
+          p_wants: string[] | null
+          p_image_paths: string[] | null
+        }
+        Returns: Array<{ id: string; code: string }>
+      }
+      update_listing: {
+        Args: {
+          p_id: string
+          p_title: string
+          p_description: string | null
+          p_category_id: number | null
+          p_condition: string | null
+          p_ask_centavos: number | null
+          p_accepts_cash: boolean | null
+          p_meetup_spot_id: number | null
+          p_wants: string[] | null
+        }
+        Returns: undefined
+      }
+      archive_listing: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
+      bump_listing: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
+      increment_listing_view: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
     }
-    Enums: Record<string, never>
+    Enums: {
+      listing_intent: ListingIntent
+      listing_status: ListingStatus
+    }
   }
 }
 
+export type ListingIntent = 'swap' | 'sale' | 'give'
+export type ListingStatus = 'draft' | 'active' | 'reserved' | 'completed' | 'archived' | 'removed'
+
 export type ProfileRow = Database['public']['Tables']['profiles']['Row']
 export type ProfileInsert = Database['public']['Tables']['profiles']['Insert']
+export type CategoryRow = Database['public']['Tables']['categories']['Row']
+export type ListingRow = Database['public']['Tables']['listings']['Row']
+export type ListingImageRow = Database['public']['Tables']['listing_images']['Row']
+export type ListingWantRow = Database['public']['Tables']['listing_wants']['Row']
