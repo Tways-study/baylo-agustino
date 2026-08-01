@@ -1,6 +1,7 @@
 export { Button } from './Button'
 export { BottomNav } from './BottomNav'
 export { Chit } from './Chit'
+export { ChitSkeleton } from './ChitSkeleton'
 export { Chip } from './Chip'
 export { EmptyState } from './EmptyState'
 export { IntentTag } from './IntentTag'
