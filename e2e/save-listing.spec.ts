@@ -20,16 +20,24 @@ test('saving a listing shows it in Bantayan', async ({ page }) => {
   const card = page.locator('article').filter({ hasText: title })
   const cardWrapper = card.locator('xpath=ancestor::div[1]')
   const saveButton = cardWrapper.locator('button')
-  await saveButton.click()
 
   // The save toggle flips its optimistic UI state synchronously on click,
   // before the Server Action resolves — waiting for that visual change
-  // would prove nothing about whether the DB write actually landed.
-  // /ako is a Server Component that fetches saved listings once at
-  // request time, so navigating before the write completes would render
-  // a stale, pre-save snapshot with no client-side retry to save us.
-  await page.waitForLoadState('networkidle')
+  // (or for page.waitForLoadState('networkidle'), which is already
+  // latched by the goto('/') above and won't re-arm for a later
+  // non-navigating fetch) would prove nothing about whether the DB write
+  // actually landed. Wait for the actual POST the Server Action makes
+  // instead — Next.js Server Actions post back to the current page's own
+  // URL — set up the waiter before the click so it can't miss the
+  // response firing between attaching and requesting.
+  await Promise.all([
+    page.waitForResponse((res) => res.request().method() === 'POST' && res.url() === page.url()),
+    saveButton.click(),
+  ])
 
+  // /ako is a Server Component that fetches saved listings once at
+  // request time, so this navigation must happen after the write above
+  // is confirmed complete, not just after the click event fires.
   await page.goto('/ako')
   await expect(page.getByText(title)).toBeVisible()
 })
