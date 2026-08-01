@@ -94,14 +94,39 @@ async function runFeedQuery(
 async function runFeedQueryByIds(
   supabase: SupabaseServerClient,
   filters: FeedFilters,
+  categoryId: number | null,
   ids: string[],
 ): Promise<FeedPage> {
   if (ids.length === 0) return { listings: [], nextCursor: null }
-  const { data } = await supabase
+
+  let query = supabase
     .from('listings')
     .select(filters.photos === '1' ? FEED_SELECT_WITH_PHOTOS_ONLY : FEED_SELECT)
     .in('id', ids)
+
+  // The fuzzy RPC only matches on title similarity — it doesn't know about
+  // the other active filters, so they're re-applied here exactly like
+  // runFeedQuery does. Without this, a filtered search (e.g. intent=swap)
+  // could fuzzy-match a sale listing and show it anyway.
+  const effectiveIntent = filters.price ? 'sale' : filters.intent
+  if (effectiveIntent) query = query.eq('intent', effectiveIntent)
+  if (filters.condition) query = query.eq('condition', filters.condition)
+  if (categoryId !== null) query = query.eq('category_id', categoryId)
+  if (filters.price) {
+    const { min, max } = priceBandToRange(filters.price)
+    query = query.gte('ask_centavos', min)
+    if (max !== null) query = query.lte('ask_centavos', max)
+  }
+
+  const { data } = await query
   const rows = (data ?? []) as unknown as FeedListing[]
+
+  // .in() does not guarantee results come back in `ids` order, which is
+  // the RPC's similarity-ranked order — re-sort explicitly so the best
+  // fuzzy match still shows first.
+  const rank = new Map(ids.map((id, i) => [id, i]))
+  rows.sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0))
+
   return { listings: await attachImageUrls(rows), nextCursor: null }
 }
 
@@ -134,6 +159,7 @@ export async function getFeedListings(
     return runFeedQueryByIds(
       supabase,
       filters,
+      categoryId,
       rows.map((r) => r.id),
     )
   }
