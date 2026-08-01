@@ -43,7 +43,11 @@ export function FeedList({
   }, [initialListings, initialCursor, initialSavedIds])
 
   function loadNext() {
-    if (!cursor) return
+    // Synchronous guard, not just the retry button's `disabled` prop below
+    // — a rapid double-click can fire two events before React commits the
+    // disabled state, and both closures would otherwise read the same
+    // `cursor` and both append to `listings`, duplicating visible cards.
+    if (!cursor || isPending) return
     setError(false)
     startTransition(async () => {
       try {
@@ -118,6 +122,7 @@ export function FeedList({
         <button
           type="button"
           onClick={loadNext}
+          disabled={isPending}
           style={{
             fontFamily: 'var(--font-body)',
             fontSize: '0.875rem',
@@ -127,7 +132,8 @@ export function FeedList({
             background: 'none',
             border: 'var(--stroke)',
             borderRadius: 'var(--radius)',
-            cursor: 'pointer',
+            cursor: isPending ? 'default' : 'pointer',
+            opacity: isPending ? 0.6 : 1,
           }}
         >
           Couldn&rsquo;t load more — retry
