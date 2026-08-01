@@ -1,15 +1,19 @@
 -- supabase/tests/phase2_listings_rls.sql
 begin;
-select plan(20);
+select plan(22);
 
 -- ─── Read grants ───
-select has_table_privilege('authenticated', 'public.listings', 'SELECT',
+-- has_table_privilege/has_function_privilege are native Postgres functions
+-- with no description argument — pgTAP's assertion is ok(), not a 4th
+-- positional arg. A bare 4-arg call errors "function ... does not exist"
+-- instead of producing a TAP result; every call below is wrapped in ok().
+select ok(has_table_privilege('authenticated', 'public.listings', 'SELECT'),
   'authenticated has SELECT on listings');
-select has_table_privilege('authenticated', 'public.listing_images', 'SELECT',
+select ok(has_table_privilege('authenticated', 'public.listing_images', 'SELECT'),
   'authenticated has SELECT on listing_images');
-select has_table_privilege('authenticated', 'public.listing_wants', 'SELECT',
+select ok(has_table_privilege('authenticated', 'public.listing_wants', 'SELECT'),
   'authenticated has SELECT on listing_wants');
-select has_table_privilege('authenticated', 'public.categories', 'SELECT',
+select ok(has_table_privilege('authenticated', 'public.categories', 'SELECT'),
   'authenticated has SELECT on categories');
 
 -- ─── Writes are revoked — everything goes through RPCs ───
@@ -25,13 +29,13 @@ select ok(not has_table_privilege('authenticated', 'public.listing_wants', 'INSE
   'authenticated cannot INSERT listing_wants directly');
 
 -- ─── RPC execute grants ───
-select has_function_privilege('authenticated',
+select ok(has_function_privilege('authenticated',
   'public.create_listing(uuid, public.listing_intent, text, text, smallint, text, integer, boolean, smallint, text[], text[])',
-  'EXECUTE', 'authenticated can call create_listing');
-select has_function_privilege('authenticated',
-  'public.bump_listing(uuid)', 'EXECUTE', 'authenticated can call bump_listing');
-select has_function_privilege('authenticated',
-  'public.archive_listing(uuid)', 'EXECUTE', 'authenticated can call archive_listing');
+  'EXECUTE'), 'authenticated can call create_listing');
+select ok(has_function_privilege('authenticated',
+  'public.bump_listing(uuid)', 'EXECUTE'), 'authenticated can call bump_listing');
+select ok(has_function_privilege('authenticated',
+  'public.archive_listing(uuid)', 'EXECUTE'), 'authenticated can call archive_listing');
 
 -- ─── generate_listing_code(): format + monotonic ───
 select matches(public.generate_listing_code(), '^BA-\d{4}$',
@@ -94,6 +98,21 @@ select ok(exists(
   where schemaname = 'storage' and tablename = 'objects'
     and policyname = 'listing images readable by authenticated'
 ), 'listing-images select policy exists');
+
+-- ─── listings policy uses is_blocked_by(), not a raw blocks subquery ───────
+-- See supabase/tests/phase1_rls.sql for why the raw form silently does
+-- nothing: blocks' own RLS hides the block row from the blocked party, so
+-- an inline `exists (select 1 from blocks where ...)` evaluated as that
+-- party sees zero rows regardless of whether a block exists. Found live
+-- against a hosted project during Phase 2 verification (a blocked user
+-- could still read the blocker's active listing) and fixed by routing
+-- through the SECURITY DEFINER helper instead.
+select matches(
+  (select qual from pg_policies where schemaname = 'public' and tablename = 'listings'
+   and policyname = 'listings readable by verified members'),
+  'is_blocked_by',
+  'listings SELECT policy calls is_blocked_by(), not a blocks subquery that RLS would silently hide'
+);
 
 select * from finish();
 rollback;

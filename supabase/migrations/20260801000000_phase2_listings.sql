@@ -92,10 +92,7 @@ create policy "listings readable by verified members"
       owner_id = auth.uid()
       or (
         status in ('active','reserved','completed')
-        and not exists (
-          select 1 from public.blocks
-          where blocker_id = listings.owner_id and blocked_id = auth.uid()
-        )
+        and not public.is_blocked_by(listings.owner_id, auth.uid())
       )
     )
   );
@@ -142,10 +139,17 @@ declare
   v_status public.listing_status;
   v_want_count integer;
 begin
-  v_listing_id := coalesce(
-    case when tg_table_name = 'listings' then new.id else new.listing_id end,
-    case when tg_table_name = 'listings' then old.id else old.listing_id end
-  );
+  -- NEW/OLD are typed to whichever table fired this trigger, so field
+  -- access must be a procedural if/else (each branch compiled only when
+  -- it actually executes) rather than a single CASE expression — a CASE
+  -- expression is compiled as one plan against NEW's fixed row type, so
+  -- `new.listing_id` fails to resolve even in an unreached branch when
+  -- this fires on `listings` (which has no listing_id column).
+  if tg_table_name = 'listings' then
+    v_listing_id := coalesce(new.id, old.id);
+  else
+    v_listing_id := coalesce(new.listing_id, old.listing_id);
+  end if;
 
   select intent, status into v_intent, v_status from public.listings where id = v_listing_id;
 

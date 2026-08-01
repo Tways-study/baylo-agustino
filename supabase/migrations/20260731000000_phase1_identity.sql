@@ -29,6 +29,27 @@ create policy "users manage own blocks"
   using (auth.uid() = blocker_id)
   with check (auth.uid() = blocker_id);
 
+-- SECURITY DEFINER, not a relaxed blocks SELECT policy: "users manage own
+-- blocks" above only lets a user see rows where they are blocker_id, so a
+-- blocked user has no RLS visibility into the row that's supposed to hide
+-- content from them. A raw `exists (select 1 from public.blocks where ...)`
+-- inside another table's policy is itself subject to that same RLS, so it
+-- silently evaluates as "no block exists" for the blocked party and the
+-- filter does nothing. This function runs as its owner, bypassing that.
+create or replace function public.is_blocked_by(p_owner_id uuid, p_viewer_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.blocks
+    where blocker_id = p_owner_id and blocked_id = p_viewer_id
+  )
+$$;
+grant execute on function public.is_blocked_by(uuid, uuid) to authenticated;
+
 -- ═══ profiles ═══
 create table public.profiles (
   id uuid primary key references auth.users on delete cascade,
@@ -46,21 +67,29 @@ create table public.profiles (
 );
 alter table public.profiles enable row level security;
 
--- Column-level security: authenticated role cannot write these fields.
--- They are set only by triggers and service-role functions.
-revoke update (verified_at, trust_score, show_up_rate, is_suspended, completed_deals)
-  on public.profiles from authenticated;
-revoke insert (verified_at, trust_score, show_up_rate, is_suspended, completed_deals)
-  on public.profiles from authenticated;
+-- Column-level security: authenticated role can only write the columns
+-- below directly. verified_at/trust_score/show_up_rate/completed_deals/
+-- is_suspended are set only by complete_onboarding() (SECURITY DEFINER)
+-- and other service-side functions/triggers.
+--
+-- REVOKE UPDATE/INSERT (col) FROM role only removes a column-level grant —
+-- it cannot override a broader table-level grant, and Postgres/Supabase
+-- grants full table-level INSERT/UPDATE to authenticated on every public
+-- table at creation time by default. A revoke-only-the-sensitive-columns
+-- approach is therefore a silent no-op: verified against a real hosted
+-- project (has_column_privilege('authenticated','public.profiles',
+-- 'verified_at','UPDATE') still returned true after that revoke). The
+-- correct pattern is to revoke the table-level grant entirely and
+-- re-grant only an explicit allow-list of columns.
+revoke insert, update on public.profiles from authenticated;
+grant insert (id, display_name, program, year_level, avatar_url, bio) on public.profiles to authenticated;
+grant update (display_name, program, year_level, avatar_url, bio) on public.profiles to authenticated;
 
 create policy "profiles readable by authenticated"
   on public.profiles for select
   using (
     auth.uid() is not null
-    and not exists (
-      select 1 from public.blocks
-      where blocker_id = profiles.id and blocked_id = auth.uid()
-    )
+    and not public.is_blocked_by(profiles.id, auth.uid())
   );
 
 create policy "users insert own profile"
