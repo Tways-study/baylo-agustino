@@ -106,8 +106,12 @@ create policy "users read own search events"
 create index on public.search_events (user_id, created_at desc);
 
 -- ═══ pg_trgm — fuzzy fallback ═══
-create extension if not exists pg_trgm;
-create index on public.listings using gin (title gin_trgm_ops);
+-- Installed into the extensions schema, matching this project's existing
+-- convention (pgtap is installed there too). Referenced fully-qualified
+-- below since search_listings_fuzzy locks search_path = '' like every
+-- other function in this codebase, DEFINER or not.
+create extension if not exists pg_trgm with schema extensions;
+create index on public.listings using gin (title extensions.gin_trgm_ops);
 
 create or replace function public.search_listings_fuzzy(p_query text, p_limit int default 24)
 returns setof public.listings
@@ -121,8 +125,8 @@ as $$
   from public.listings
   where status = 'active'
     and expires_at > now()
-    and similarity(title, p_query) > 0.2
-  order by similarity(title, p_query) desc
+    and extensions.similarity(title, p_query) > 0.2
+  order by extensions.similarity(title, p_query) desc
   limit p_limit
 $$;
 
@@ -632,14 +636,39 @@ async function runFeedQuery(
 async function runFeedQueryByIds(
   supabase: SupabaseServerClient,
   filters: FeedFilters,
+  categoryId: number | null,
   ids: string[],
 ): Promise<FeedPage> {
   if (ids.length === 0) return { listings: [], nextCursor: null }
-  const { data } = await supabase
+
+  let query = supabase
     .from('listings')
     .select(filters.photos === '1' ? FEED_SELECT_WITH_PHOTOS_ONLY : FEED_SELECT)
     .in('id', ids)
+
+  // The fuzzy RPC only matches on title similarity — it doesn't know about
+  // the other active filters, so they're re-applied here exactly like
+  // runFeedQuery does. Without this, a filtered search (e.g. intent=swap)
+  // could fuzzy-match a sale listing and show it anyway.
+  const effectiveIntent = filters.price ? 'sale' : filters.intent
+  if (effectiveIntent) query = query.eq('intent', effectiveIntent)
+  if (filters.condition) query = query.eq('condition', filters.condition)
+  if (categoryId !== null) query = query.eq('category_id', categoryId)
+  if (filters.price) {
+    const { min, max } = priceBandToRange(filters.price)
+    query = query.gte('ask_centavos', min)
+    if (max !== null) query = query.lte('ask_centavos', max)
+  }
+
+  const { data } = await query
   const rows = (data ?? []) as unknown as FeedListing[]
+
+  // .in() does not guarantee results come back in `ids` order, which is
+  // the RPC's similarity-ranked order — re-sort explicitly so the best
+  // fuzzy match still shows first.
+  const rank = new Map(ids.map((id, i) => [id, i]))
+  rows.sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0))
+
   return { listings: await attachImageUrls(rows), nextCursor: null }
 }
 
@@ -653,16 +682,20 @@ export async function getFeedListings(
     ? (categories.find((c) => c.slug === filters.category)?.id ?? null)
     : null
 
+  // Computed once regardless of page, and reused on the final fallthrough
+  // return below — without this, page 2+ of a search would silently drop
+  // the search constraint (filters.q is still truthy but cursor is now
+  // set, so the block below is skipped; the old code's fallthrough call
+  // omitted the prefixQuery argument entirely).
+  const prefixQuery = filters.q ? buildPrefixTsQuery(filters.q) : ''
+
   // A search term with zero matches on the primary index falls back to
   // fuzzy trigram matching instead of an empty feed. The fallback isn't
   // paginated — the RPC just returns its best N matches — so it's only
   // attempted on the first page (no cursor).
-  if (filters.q && !cursor) {
-    const prefixQuery = buildPrefixTsQuery(filters.q)
-    if (prefixQuery) {
-      const primary = await runFeedQuery(supabase, filters, categoryId, cursor, prefixQuery)
-      if (primary.listings.length > 0) return primary
-    }
+  if (filters.q && !cursor && prefixQuery) {
+    const primary = await runFeedQuery(supabase, filters, categoryId, cursor, prefixQuery)
+    if (primary.listings.length > 0) return primary
 
     const { data } = await supabase.rpc('search_listings_fuzzy', {
       p_query: filters.q,
@@ -672,11 +705,12 @@ export async function getFeedListings(
     return runFeedQueryByIds(
       supabase,
       filters,
+      categoryId,
       rows.map((r) => r.id),
     )
   }
 
-  return runFeedQuery(supabase, filters, categoryId, cursor)
+  return runFeedQuery(supabase, filters, categoryId, cursor, prefixQuery || undefined)
 }
 
 export async function getSavedListingIds(userId: string): Promise<Set<string>> {
@@ -701,13 +735,16 @@ export async function getSavedListings(userId: string): Promise<MyListing[]> {
 
 export async function getRecentSearches(userId: string): Promise<string[]> {
   const supabase = await createClient()
+  // Fetch more than 5 raw rows before deduping — a user who repeats a
+  // query often would otherwise see fewer than 5 distinct suggestions
+  // even with plenty of unique searches further back in their history.
   const { data } = await supabase
     .from('search_events')
     .select('query')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
-    .limit(5)
-  return Array.from(new Set((data ?? []).map((r) => r.query)))
+    .limit(20)
+  return Array.from(new Set((data ?? []).map((r) => r.query))).slice(0, 5)
 }
 ```
 
