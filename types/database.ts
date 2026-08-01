@@ -223,6 +223,47 @@ export interface Database {
           referencedColumns: string[]
         }>
       }
+      saved_listings: {
+        Row: {
+          user_id: string
+          listing_id: string
+          created_at: string
+        }
+        Insert: {
+          user_id: string
+          listing_id: string
+          created_at?: string
+        }
+        Update: Record<string, never>
+        Relationships: Array<{
+          foreignKeyName: string
+          columns: string[]
+          isOneToOne?: boolean
+          referencedRelation: string
+          referencedColumns: string[]
+        }>
+      }
+      search_events: {
+        Row: {
+          id: number
+          user_id: string
+          query: string
+          created_at: string
+        }
+        Insert: {
+          user_id: string
+          query: string
+          created_at?: string
+        }
+        Update: Record<string, never>
+        Relationships: Array<{
+          foreignKeyName: string
+          columns: string[]
+          isOneToOne?: boolean
+          referencedRelation: string
+          referencedColumns: string[]
+        }>
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -281,6 +322,10 @@ export interface Database {
       increment_listing_view: {
         Args: { p_id: string }
         Returns: undefined
+      }
+      search_listings_fuzzy: {
+        Args: { p_query: string; p_limit?: number }
+        Returns: Database['public']['Tables']['listings']['Row'][]
       }
     }
     Enums: {

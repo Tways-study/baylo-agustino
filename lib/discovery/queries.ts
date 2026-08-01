@@ -1,0 +1,173 @@
+import 'server-only'
+import { createClient } from '@/lib/supabase/server'
+import { getSignedImageUrls } from '@/lib/media/get-image-url'
+import type { FeedFilters } from './schemas'
+import { priceBandToRange } from './format'
+import { buildPrefixTsQuery } from './search'
+import type { FeedListing, MyListing } from '@/lib/listings/queries'
+import type { CategoryRow } from '@/types/database'
+
+export interface FeedCursor {
+  bumpedAt: string
+  id: string
+}
+
+export type FeedListingWithImage = FeedListing & { imageUrl?: string }
+
+export interface FeedPage {
+  listings: FeedListingWithImage[]
+  nextCursor: FeedCursor | null
+}
+
+const PAGE_SIZE = 24
+
+const FEED_SELECT =
+  'id, code, intent, title, condition, ask_centavos, bumped_at, ' +
+  'listing_images(storage_path, position), ' +
+  'listing_wants(label, position), ' +
+  'profiles!listings_owner_id_fkey(display_name, verified_at)'
+
+const FEED_SELECT_WITH_PHOTOS_ONLY =
+  'id, code, intent, title, condition, ask_centavos, bumped_at, ' +
+  'listing_images!inner(storage_path, position), ' +
+  'listing_wants(label, position), ' +
+  'profiles!listings_owner_id_fkey(display_name, verified_at)'
+
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>
+
+async function attachImageUrls(listings: FeedListing[]): Promise<FeedListingWithImage[]> {
+  const coverPaths = listings
+    .map((l) => l.listing_images?.find((i) => i.position === 0)?.storage_path)
+    .filter((p): p is string => !!p)
+  const signedUrls = await getSignedImageUrls(coverPaths)
+  return listings.map((l) => {
+    const cover = l.listing_images?.find((i) => i.position === 0)?.storage_path
+    return { ...l, imageUrl: cover ? signedUrls[cover] : undefined }
+  })
+}
+
+async function runFeedQuery(
+  supabase: SupabaseServerClient,
+  filters: FeedFilters,
+  categoryId: number | null,
+  cursor?: FeedCursor,
+  prefixQuery?: string,
+): Promise<FeedPage> {
+  let query = supabase
+    .from('listings')
+    .select(filters.photos === '1' ? FEED_SELECT_WITH_PHOTOS_ONLY : FEED_SELECT)
+    .eq('status', 'active')
+    .gt('expires_at', new Date().toISOString())
+
+  const effectiveIntent = filters.price ? 'sale' : filters.intent
+  if (effectiveIntent) query = query.eq('intent', effectiveIntent)
+  if (filters.condition) query = query.eq('condition', filters.condition)
+  if (categoryId !== null) query = query.eq('category_id', categoryId)
+
+  if (filters.price) {
+    const { min, max } = priceBandToRange(filters.price)
+    query = query.gte('ask_centavos', min)
+    if (max !== null) query = query.lte('ask_centavos', max)
+  }
+
+  if (prefixQuery) query = query.textSearch('search_tsv', prefixQuery)
+
+  if (cursor) {
+    query = query.or(
+      `bumped_at.lt.${cursor.bumpedAt},and(bumped_at.eq.${cursor.bumpedAt},id.lt.${cursor.id})`,
+    )
+  }
+
+  const { data } = await query
+    .order('bumped_at', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(PAGE_SIZE)
+
+  const rows = (data ?? []) as unknown as FeedListing[]
+  const last = rows[rows.length - 1]
+  const nextCursor =
+    rows.length === PAGE_SIZE && last ? { bumpedAt: last.bumped_at, id: last.id } : null
+
+  return { listings: await attachImageUrls(rows), nextCursor }
+}
+
+async function runFeedQueryByIds(
+  supabase: SupabaseServerClient,
+  filters: FeedFilters,
+  ids: string[],
+): Promise<FeedPage> {
+  if (ids.length === 0) return { listings: [], nextCursor: null }
+  const { data } = await supabase
+    .from('listings')
+    .select(filters.photos === '1' ? FEED_SELECT_WITH_PHOTOS_ONLY : FEED_SELECT)
+    .in('id', ids)
+  const rows = (data ?? []) as unknown as FeedListing[]
+  return { listings: await attachImageUrls(rows), nextCursor: null }
+}
+
+export async function getFeedListings(
+  filters: FeedFilters,
+  categories: CategoryRow[],
+  cursor?: FeedCursor,
+): Promise<FeedPage> {
+  const supabase = await createClient()
+  const categoryId = filters.category
+    ? (categories.find((c) => c.slug === filters.category)?.id ?? null)
+    : null
+
+  // A search term with zero matches on the primary index falls back to
+  // fuzzy trigram matching instead of an empty feed. The fallback isn't
+  // paginated — the RPC just returns its best N matches — so it's only
+  // attempted on the first page (no cursor).
+  if (filters.q && !cursor) {
+    const prefixQuery = buildPrefixTsQuery(filters.q)
+    if (prefixQuery) {
+      const primary = await runFeedQuery(supabase, filters, categoryId, cursor, prefixQuery)
+      if (primary.listings.length > 0) return primary
+    }
+
+    const { data } = await supabase.rpc('search_listings_fuzzy', {
+      p_query: filters.q,
+      p_limit: PAGE_SIZE,
+    })
+    const rows = (data ?? []) as unknown as Array<{ id: string }>
+    return runFeedQueryByIds(
+      supabase,
+      filters,
+      rows.map((r) => r.id),
+    )
+  }
+
+  return runFeedQuery(supabase, filters, categoryId, cursor)
+}
+
+export async function getSavedListingIds(userId: string): Promise<Set<string>> {
+  const supabase = await createClient()
+  const { data } = await supabase.from('saved_listings').select('listing_id').eq('user_id', userId)
+  return new Set((data ?? []).map((row) => row.listing_id))
+}
+
+export async function getSavedListings(userId: string): Promise<MyListing[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('saved_listings')
+    .select(
+      'listings(id, code, title, intent, status, ask_centavos, view_count, listing_images(storage_path, position))',
+    )
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+
+  const rows = (data ?? []) as unknown as Array<{ listings: MyListing | null }>
+  return rows.map((r) => r.listings).filter((l): l is MyListing => l !== null)
+}
+
+export async function getRecentSearches(userId: string): Promise<string[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('search_events')
+    .select('query')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(5)
+  return Array.from(new Set((data ?? []).map((r) => r.query)))
+}
