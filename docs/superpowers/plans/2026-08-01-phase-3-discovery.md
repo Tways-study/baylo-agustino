@@ -1522,16 +1522,20 @@ export function FeedList({
 }: FeedListProps) {
   const [listings, setListings] = useState(initialListings)
   const [cursor, setCursor] = useState(initialCursor)
-  const [savedIds] = useState(new Set(initialSavedIds))
+  const [savedIds, setSavedIds] = useState(new Set(initialSavedIds))
   const [error, setError] = useState(false)
   const [isPending, startTransition] = useTransition()
   const sentinelRef = useRef<HTMLDivElement>(null)
 
+  // initialSavedIds arrives fresh from the server on every filter change
+  // (page.tsx re-renders with new props) — without this, save state would
+  // stay frozen at whatever it was on first mount after a filter change.
   useEffect(() => {
     setListings(initialListings)
     setCursor(initialCursor)
+    setSavedIds(new Set(initialSavedIds))
     setError(false)
-  }, [initialListings, initialCursor])
+  }, [initialListings, initialCursor, initialSavedIds])
 
   function loadNext() {
     if (!cursor) return
