@@ -110,8 +110,8 @@ Implement one phase at a time. Do not start Phase N+1 until Phase N acceptance c
 
 - **Phase 0** — Foundations & design system
 - **Phase 1** — Identity & verification
-- **Phase 2** — Listings (current)
-- **Phase 3** — Discovery
+- **Phase 2** — Listings
+- **Phase 3** — Discovery (current)
 - **Phase 4** — Offer engine ★ (highest risk, budget accordingly)
 - **Phase 5** — Deal room
 - **Phase 6** — Trust & safety
