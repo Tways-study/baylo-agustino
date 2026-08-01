@@ -140,16 +140,20 @@ export async function getFeedListings(
     ? (categories.find((c) => c.slug === filters.category)?.id ?? null)
     : null
 
+  // Computed once regardless of page, and reused on the final fallthrough
+  // return below — without this, page 2+ of a search would silently drop
+  // the search constraint (filters.q is still truthy but cursor is now
+  // set, so the block below is skipped; the old code's fallthrough call
+  // omitted the prefixQuery argument entirely).
+  const prefixQuery = filters.q ? buildPrefixTsQuery(filters.q) : ''
+
   // A search term with zero matches on the primary index falls back to
   // fuzzy trigram matching instead of an empty feed. The fallback isn't
   // paginated — the RPC just returns its best N matches — so it's only
   // attempted on the first page (no cursor).
-  if (filters.q && !cursor) {
-    const prefixQuery = buildPrefixTsQuery(filters.q)
-    if (prefixQuery) {
-      const primary = await runFeedQuery(supabase, filters, categoryId, cursor, prefixQuery)
-      if (primary.listings.length > 0) return primary
-    }
+  if (filters.q && !cursor && prefixQuery) {
+    const primary = await runFeedQuery(supabase, filters, categoryId, cursor, prefixQuery)
+    if (primary.listings.length > 0) return primary
 
     const { data } = await supabase.rpc('search_listings_fuzzy', {
       p_query: filters.q,
@@ -164,7 +168,7 @@ export async function getFeedListings(
     )
   }
 
-  return runFeedQuery(supabase, filters, categoryId, cursor)
+  return runFeedQuery(supabase, filters, categoryId, cursor, prefixQuery || undefined)
 }
 
 export async function getSavedListingIds(userId: string): Promise<Set<string>> {
@@ -189,11 +193,14 @@ export async function getSavedListings(userId: string): Promise<MyListing[]> {
 
 export async function getRecentSearches(userId: string): Promise<string[]> {
   const supabase = await createClient()
+  // Fetch more than 5 raw rows before deduping — a user who repeats a
+  // query often would otherwise see fewer than 5 distinct suggestions
+  // even with plenty of unique searches further back in their history.
   const { data } = await supabase
     .from('search_events')
     .select('query')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
-    .limit(5)
-  return Array.from(new Set((data ?? []).map((r) => r.query)))
+    .limit(20)
+  return Array.from(new Set((data ?? []).map((r) => r.query))).slice(0, 5)
 }
