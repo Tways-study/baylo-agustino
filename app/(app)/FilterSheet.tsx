@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Sheet, Button } from '@/components/ui'
 import type { CategoryRow } from '@/types/database'
 
@@ -43,6 +43,19 @@ export function FilterSheet({ open, onClose, categories, initial }: FilterSheetP
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [value, setValue] = useState<FilterSheetValue>(initial)
+
+  // FilterChips renders one persistent <FilterSheet> instance and only
+  // toggles `open` — this component itself never unmounts, so `value`
+  // would otherwise stay frozen at whatever was last drafted (including
+  // an abandoned, never-Applied edit) instead of reflecting the current
+  // URL state each time the sheet is reopened. Deliberately depends only
+  // on `open`, not `initial` — `initial` is a fresh object literal on
+  // every parent render, so including it would reset the in-progress
+  // draft on unrelated re-renders while the sheet is still open.
+  useEffect(() => {
+    if (open) setValue(initial)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   function apply() {
     const params = new URLSearchParams(searchParams.toString())
