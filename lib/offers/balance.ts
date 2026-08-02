@@ -21,7 +21,7 @@ export function computeBalance(input: BalanceInput): BalanceRead {
     return 'cant_gauge'
   }
 
-  const itemsTotal = input.offeredItemsValueCentavos.reduce((sum, v) => sum + (v ?? 0), 0)
+  const itemsTotal = input.offeredItemsValueCentavos.reduce<number>((sum, v) => sum + (v ?? 0), 0)
   const cashDelta =
     input.cashDirection === 'from_offerer' ? input.cashCentavos : -input.cashCentavos
   const offeredValue = itemsTotal + cashDelta
