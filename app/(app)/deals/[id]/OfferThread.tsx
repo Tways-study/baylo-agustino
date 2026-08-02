@@ -112,7 +112,7 @@ export function OfferThread({ thread, listing, items, currentUserId }: OfferThre
         ))}
       </div>
 
-      <OfferActions offer={leaf} role={role} />
+      <OfferActions offer={leaf} role={role} isOwner={currentUserId === listing.owner_id} />
     </div>
   )
 }

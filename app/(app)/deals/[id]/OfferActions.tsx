@@ -11,9 +11,10 @@ import type { OfferThreadRow } from '@/lib/offers/queries'
 interface OfferActionsProps {
   offer: OfferThreadRow
   role: 'offerer' | 'recipient'
+  isOwner: boolean
 }
 
-export function OfferActions({ offer, role }: OfferActionsProps) {
+export function OfferActions({ offer, role, isOwner }: OfferActionsProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
@@ -25,6 +26,21 @@ export function OfferActions({ offer, role }: OfferActionsProps) {
   const [counterNote, setCounterNote] = useState('')
 
   const status = offer.status
+
+  // cash_direction is stored relative to fixed global identities ("the
+  // offerer" vs "the owner") for the whole thread — see balance.ts and the
+  // "added by the offerer/owner" line below. Only the toggle's label→value
+  // mapping needs to flip based on which fixed identity the current user is;
+  // the stored value itself stays in that same fixed semantic space.
+  const cashOptions: Array<{ value: 'from_offerer' | 'to_offerer'; label: string }> = isOwner
+    ? [
+        { value: 'to_offerer', label: 'I add cash' },
+        { value: 'from_offerer', label: 'They add cash' },
+      ]
+    : [
+        { value: 'from_offerer', label: 'I add cash' },
+        { value: 'to_offerer', label: 'They add cash' },
+      ]
 
   function run(action: () => Promise<{ error?: string }>) {
     setError(null)
@@ -146,10 +162,7 @@ export function OfferActions({ offer, role }: OfferActionsProps) {
             aria-label="Who adds the cash"
             style={{ display: 'flex', gap: '0.375rem' }}
           >
-            {[
-              { value: 'from_offerer' as const, label: 'I add cash' },
-              { value: 'to_offerer' as const, label: 'They add cash' },
-            ].map((opt) => (
+            {cashOptions.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
