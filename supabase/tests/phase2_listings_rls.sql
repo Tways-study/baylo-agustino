@@ -30,7 +30,7 @@ select ok(not has_table_privilege('authenticated', 'public.listing_wants', 'INSE
 
 -- ─── RPC execute grants ───
 select ok(has_function_privilege('authenticated',
-  'public.create_listing(uuid, public.listing_intent, text, text, smallint, text, integer, boolean, smallint, text[], text[])',
+  'public.create_listing(uuid, public.listing_intent, text, text, smallint, text, integer, boolean, smallint, text[], text[], integer)',
   'EXECUTE'), 'authenticated can call create_listing');
 select ok(has_function_privilege('authenticated',
   'public.bump_listing(uuid)', 'EXECUTE'), 'authenticated can call bump_listing');
