@@ -144,6 +144,7 @@ export interface Database {
           category_id: number | null
           condition: string | null
           ask_centavos: number | null
+          estimated_value_centavos: number | null
           accepts_cash: boolean
           status: ListingStatus
           meetup_spot_id: number | null
@@ -163,6 +164,7 @@ export interface Database {
           category_id?: number | null
           condition?: string | null
           ask_centavos?: number | null
+          estimated_value_centavos?: number | null
           accepts_cash?: boolean
           status?: ListingStatus
           meetup_spot_id?: number | null
@@ -264,6 +266,90 @@ export interface Database {
           referencedColumns: string[]
         }>
       }
+      offers: {
+        Row: {
+          id: string
+          listing_id: string
+          root_offer_id: string
+          from_user_id: string
+          to_user_id: string
+          parent_offer_id: string | null
+          cash_centavos: number
+          cash_direction: CashDirection
+          note: string | null
+          status: OfferStatus
+          expires_at: string
+          created_at: string
+          responded_at: string | null
+        }
+        Insert: {
+          id?: string
+          listing_id: string
+          root_offer_id?: string
+          from_user_id: string
+          to_user_id: string
+          parent_offer_id?: string | null
+          cash_centavos?: number
+          cash_direction?: CashDirection
+          note?: string | null
+          status?: OfferStatus
+          expires_at?: string
+          created_at?: string
+          responded_at?: string | null
+        }
+        Update: Record<string, never>
+        Relationships: Array<{
+          foreignKeyName: string
+          columns: string[]
+          isOneToOne?: boolean
+          referencedRelation: string
+          referencedColumns: string[]
+        }>
+      }
+      offer_items: {
+        Row: {
+          root_offer_id: string
+          listing_id: string
+        }
+        Insert: {
+          root_offer_id: string
+          listing_id: string
+        }
+        Update: Record<string, never>
+        Relationships: Array<{
+          foreignKeyName: string
+          columns: string[]
+          isOneToOne?: boolean
+          referencedRelation: string
+          referencedColumns: string[]
+        }>
+      }
+      notifications: {
+        Row: {
+          id: string
+          user_id: string
+          offer_id: string
+          kind: NotificationKind
+          read_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          offer_id: string
+          kind: NotificationKind
+          read_at?: string | null
+          created_at?: string
+        }
+        Update: { read_at?: string | null }
+        Relationships: Array<{
+          foreignKeyName: string
+          columns: string[]
+          isOneToOne?: boolean
+          referencedRelation: string
+          referencedColumns: string[]
+        }>
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -290,6 +376,7 @@ export interface Database {
           p_category_id: number | null
           p_condition: string | null
           p_ask_centavos: number | null
+          p_estimated_value_centavos: number | null
           p_accepts_cash: boolean | null
           p_meetup_spot_id: number | null
           p_wants: string[] | null
@@ -305,6 +392,7 @@ export interface Database {
           p_category_id: number | null
           p_condition: string | null
           p_ask_centavos: number | null
+          p_estimated_value_centavos: number | null
           p_accepts_cash: boolean | null
           p_meetup_spot_id: number | null
           p_wants: string[] | null
@@ -327,16 +415,62 @@ export interface Database {
         Args: { p_query: string; p_limit?: number }
         Returns: Database['public']['Tables']['listings']['Row'][]
       }
+      create_offer: {
+        Args: {
+          p_listing_id: string
+          p_item_listing_ids: string[] | null
+          p_cash_centavos: number | null
+          p_cash_direction: string | null
+          p_note: string | null
+        }
+        Returns: string
+      }
+      counter_offer: {
+        Args: {
+          p_offer_id: string
+          p_cash_centavos: number | null
+          p_cash_direction: string | null
+          p_note: string | null
+        }
+        Returns: string
+      }
+      accept_offer: {
+        Args: { p_offer_id: string }
+        Returns: undefined
+      }
+      decline_offer: {
+        Args: { p_offer_id: string }
+        Returns: undefined
+      }
+      withdraw_offer: {
+        Args: { p_offer_id: string }
+        Returns: undefined
+      }
+      get_offer_thread: {
+        Args: { p_offer_id: string }
+        Returns: Database['public']['Tables']['offers']['Row'][]
+      }
     }
     Enums: {
       listing_intent: ListingIntent
       listing_status: ListingStatus
+      offer_status: OfferStatus
     }
   }
 }
 
 export type ListingIntent = 'swap' | 'sale' | 'give'
 export type ListingStatus = 'draft' | 'active' | 'reserved' | 'completed' | 'archived' | 'removed'
+export type OfferStatus =
+  'pending' | 'accepted' | 'declined' | 'countered' | 'withdrawn' | 'expired' | 'cancelled'
+export type CashDirection = 'from_offerer' | 'to_offerer'
+export type NotificationKind =
+  | 'offer_received'
+  | 'offer_countered'
+  | 'offer_accepted'
+  | 'offer_declined'
+  | 'offer_withdrawn'
+  | 'offer_expired'
 
 export type ProfileRow = Database['public']['Tables']['profiles']['Row']
 export type ProfileInsert = Database['public']['Tables']['profiles']['Insert']
@@ -345,3 +479,5 @@ export type CategoryRow = Database['public']['Tables']['categories']['Row']
 export type ListingRow = Database['public']['Tables']['listings']['Row']
 export type ListingImageRow = Database['public']['Tables']['listing_images']['Row']
 export type ListingWantRow = Database['public']['Tables']['listing_wants']['Row']
+export type OfferRow = Database['public']['Tables']['offers']['Row']
+export type NotificationRow = Database['public']['Tables']['notifications']['Row']
