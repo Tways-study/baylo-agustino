@@ -1,6 +1,7 @@
-import { Ribbon, EmptyState } from '@/components/ui'
+import { Ribbon, EmptyState, NotificationBell } from '@/components/ui'
 import { getCategories } from '@/lib/listings/queries'
 import { getFeedListings, getSavedListingIds, getRecentSearches } from '@/lib/discovery/queries'
+import { getUnreadNotifications } from '@/lib/offers/queries'
 import { parseFeedFilters } from '@/lib/discovery/schemas'
 import { getAuthUser } from '@/lib/auth/session'
 import { SearchBar } from './SearchBar'
@@ -16,10 +17,11 @@ export default async function BaylohanPage({ searchParams }: BaylohanPageProps) 
   const filters = parseFeedFilters(rawParams)
 
   const [categories, user] = await Promise.all([getCategories(), getAuthUser()])
-  const [{ listings, nextCursor }, savedIds, recentSearches] = await Promise.all([
+  const [{ listings, nextCursor }, savedIds, recentSearches, notifications] = await Promise.all([
     getFeedListings(filters, categories),
     user ? getSavedListingIds(user.id) : Promise.resolve(new Set<string>()),
     user ? getRecentSearches(user.id) : Promise.resolve([]),
+    user ? getUnreadNotifications(user.id) : Promise.resolve([]),
   ])
 
   const hasActiveFilters = Boolean(
@@ -40,7 +42,7 @@ export default async function BaylohanPage({ searchParams }: BaylohanPageProps) 
   return (
     <>
       <header>
-        <Ribbon>Baylohan</Ribbon>
+        <Ribbon end={user && <NotificationBell notifications={notifications} />}>Baylohan</Ribbon>
       </header>
       <main className="flex flex-col gap-3 px-4 py-4">
         <SearchBar initialQuery={filters.q ?? ''} recentSearches={recentSearches} />

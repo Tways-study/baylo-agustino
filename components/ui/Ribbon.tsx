@@ -4,9 +4,10 @@ interface RibbonProps {
   children: ReactNode
   className?: string
   style?: CSSProperties
+  end?: ReactNode
 }
 
-export function Ribbon({ children, className = '', style }: RibbonProps) {
+export function Ribbon({ children, className = '', style, end }: RibbonProps) {
   return (
     <div
       className={`relative flex items-center justify-center px-8 py-2 ${className}`}
@@ -25,6 +26,18 @@ export function Ribbon({ children, className = '', style }: RibbonProps) {
       >
         {children}
       </span>
+      {end && (
+        <span
+          style={{
+            position: 'absolute',
+            right: '1.25rem',
+            top: '50%',
+            transform: 'translateY(-50%)',
+          }}
+        >
+          {end}
+        </span>
+      )}
     </div>
   )
 }
