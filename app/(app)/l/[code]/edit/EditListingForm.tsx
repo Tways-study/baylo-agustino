@@ -23,6 +23,7 @@ interface EditListingFormProps {
     condition: ListingDetailsValue['condition']
     meetupSpotId: number | null
     askCentavos: number | null
+    estimatedValueCentavos: number | null
     acceptsCash: boolean
     wants: string[]
   }
@@ -48,6 +49,9 @@ export function EditListingForm({
     wants: initial.wants.length > 0 ? initial.wants : [''],
     acceptsCash: initial.acceptsCash,
     askPesos: initial.askCentavos ? centavosToPesos(initial.askCentavos) : '',
+    estimatedValuePesos: initial.estimatedValueCentavos
+      ? centavosToPesos(initial.estimatedValueCentavos)
+      : '',
   })
 
   const bannedScan: ScanResult = useMemo(
@@ -87,6 +91,9 @@ export function EditListingForm({
             intent: 'swap' as const,
             wants: details.wants.map((w) => w.trim()).filter(Boolean),
             acceptsCash: details.acceptsCash,
+            estimatedValueCentavos: details.estimatedValuePesos
+              ? pesosToCentavos(details.estimatedValuePesos)
+              : undefined,
           }
         : intent === 'sale'
           ? {

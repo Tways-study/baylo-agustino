@@ -43,6 +43,7 @@ const emptyDetails: ListingDetailsValue = {
   wants: [''],
   acceptsCash: false,
   askPesos: '',
+  estimatedValuePesos: '',
 }
 
 export function PostSheet({ categories, meetupSpots }: PostSheetProps) {
@@ -160,6 +161,9 @@ export function PostSheet({ categories, meetupSpots }: PostSheetProps) {
             intent: 'swap' as const,
             wants: details.wants.map((w) => w.trim()).filter(Boolean),
             acceptsCash: details.acceptsCash,
+            estimatedValueCentavos: details.estimatedValuePesos
+              ? pesosToCentavos(details.estimatedValuePesos)
+              : undefined,
           }
         : intent === 'sale'
           ? {

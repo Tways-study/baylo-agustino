@@ -35,6 +35,7 @@ export default async function EditListingPage({ params }: { params: Promise<{ co
           condition: listing.condition as 'new' | 'like_new' | 'good' | 'fair' | 'worn' | null,
           meetupSpotId: listing.meetup_spot_id,
           askCentavos: listing.ask_centavos,
+          estimatedValueCentavos: listing.estimated_value_centavos,
           acceptsCash: listing.accepts_cash,
           wants,
         }}

@@ -22,6 +22,7 @@ export const createListingSchema = z.discriminatedUnion('intent', [
         .min(1, 'Add at least one thing you would take in return.')
         .max(5, 'Up to 5 things.'),
       acceptsCash: z.boolean().default(false),
+      estimatedValueCentavos: z.coerce.number().int().positive().optional(),
     })
     .strict(),
   z
@@ -51,6 +52,7 @@ export const updateListingSchema = z.discriminatedUnion('intent', [
       images: z.never().optional(),
       wants: z.array(z.string().trim().min(1).max(80)).min(1).max(5),
       acceptsCash: z.boolean().default(false),
+      estimatedValueCentavos: z.coerce.number().int().positive().optional(),
     })
     .strict(),
   z

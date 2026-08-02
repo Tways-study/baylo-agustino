@@ -17,6 +17,7 @@ export interface ListingDetailsValue {
   wants: string[]
   acceptsCash: boolean
   askPesos: string
+  estimatedValuePesos: string
 }
 
 interface ListingDetailsFieldsProps {
@@ -332,6 +333,25 @@ export function ListingDetailsFields({
               I&rsquo;d also take cash
             </span>
           </label>
+          <div style={{ marginTop: '0.75rem' }}>
+            <label htmlFor="listing-estimated-value" style={labelStyle}>
+              Roughly worth (₱, optional)
+            </label>
+            <input
+              id="listing-estimated-value"
+              type="number"
+              inputMode="decimal"
+              min={1}
+              step="1"
+              value={value.estimatedValuePesos}
+              onChange={(e) => set('estimatedValuePesos', e.target.value)}
+              placeholder="600"
+              style={inputStyle}
+            />
+            <p style={{ ...hintStyle, marginTop: '0.25rem' }}>
+              Helps the balance beam on offers — never shown as a price tag.
+            </p>
+          </div>
         </div>
       )}
 

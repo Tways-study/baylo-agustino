@@ -35,6 +35,7 @@ export interface ListingDetail {
   category_id: number | null
   condition: string | null
   ask_centavos: number | null
+  estimated_value_centavos: number | null
   accepts_cash: boolean
   status: ListingStatus
   meetup_spot_id: number | null

@@ -42,6 +42,8 @@ export async function createListing(
     p_category_id: input.categoryId,
     p_condition: input.condition,
     p_ask_centavos: input.intent === 'sale' ? input.askCentavos : null,
+    p_estimated_value_centavos:
+      input.intent === 'swap' ? (input.estimatedValueCentavos ?? null) : null,
     p_accepts_cash: input.intent === 'swap' ? input.acceptsCash : false,
     p_meetup_spot_id: input.meetupSpotId,
     p_wants: input.intent === 'swap' ? input.wants : null,
@@ -77,6 +79,8 @@ export async function updateListing(
     p_category_id: input.categoryId,
     p_condition: input.condition,
     p_ask_centavos: input.intent === 'sale' ? input.askCentavos : null,
+    p_estimated_value_centavos:
+      input.intent === 'swap' ? (input.estimatedValueCentavos ?? null) : null,
     p_accepts_cash: input.intent === 'swap' ? input.acceptsCash : false,
     p_meetup_spot_id: input.meetupSpotId,
     p_wants: input.intent === 'swap' ? input.wants : null,
