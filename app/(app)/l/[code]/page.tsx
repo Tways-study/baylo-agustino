@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
 import { getListingByCode } from '@/lib/listings/queries'
 import { getAuthUser } from '@/lib/auth/session'
 import { getSignedImageUrls } from '@/lib/media/get-image-url'
@@ -259,15 +260,16 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             >
               Message
             </Button>
-            <Button
-              type="button"
-              variant="primary"
-              fullWidth
-              disabled
-              title="Coming in a later phase"
-            >
-              Make an offer
-            </Button>
+            <Link href={`/l/${listing.code}/offer`} style={{ flex: 1 }}>
+              <Button
+                type="button"
+                variant="primary"
+                fullWidth
+                disabled={listing.status !== 'active' || isExpired}
+              >
+                Make an offer
+              </Button>
+            </Link>
           </div>
         )}
       </div>
