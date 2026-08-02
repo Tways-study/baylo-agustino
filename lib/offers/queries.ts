@@ -1,6 +1,6 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
-import type { ListingIntent, NotificationRow, OfferStatus } from '@/types/database'
+import type { ListingIntent, ListingStatus, NotificationRow, OfferStatus } from '@/types/database'
 
 export interface OfferableListing {
   id: string
@@ -29,7 +29,7 @@ export interface ListingForOffer {
   owner_id: string
   intent: ListingIntent
   title: string
-  status: string
+  status: ListingStatus
   expires_at: string
   ask_centavos: number | null
   estimated_value_centavos: number | null
@@ -137,9 +137,14 @@ export async function getInboxThreads(
 
   for (const row of rows) {
     const isReceived = row.listings.owner_id === userId
-    const counterpartyName = isReceived
-      ? (row.from_profile?.display_name ?? 'Someone')
-      : (row.to_profile?.display_name ?? 'Someone')
+    // Counterparty must be derived from from_user_id/to_user_id, not isReceived —
+    // those two swap on every counter-offer, while isReceived (listing ownership)
+    // stays fixed. Using isReceived here would show the caller their own name
+    // as "counterparty" as soon as they counter.
+    const counterpartyName =
+      row.from_user_id === userId
+        ? (row.to_profile?.display_name ?? 'Someone')
+        : (row.from_profile?.display_name ?? 'Someone')
 
     const thread: InboxThread = {
       id: row.id,
