@@ -285,7 +285,7 @@ export interface Database {
         Insert: {
           id?: string
           listing_id: string
-          root_offer_id?: string
+          root_offer_id: string
           from_user_id: string
           to_user_id: string
           parent_offer_id?: string | null
@@ -480,4 +480,5 @@ export type ListingRow = Database['public']['Tables']['listings']['Row']
 export type ListingImageRow = Database['public']['Tables']['listing_images']['Row']
 export type ListingWantRow = Database['public']['Tables']['listing_wants']['Row']
 export type OfferRow = Database['public']['Tables']['offers']['Row']
+export type OfferItemRow = Database['public']['Tables']['offer_items']['Row']
 export type NotificationRow = Database['public']['Tables']['notifications']['Row']
