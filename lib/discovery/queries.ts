@@ -35,6 +35,33 @@ const FEED_SELECT_WITH_PHOTOS_ONLY =
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>
 
+function baseFeedQuery(supabase: SupabaseServerClient, filters: FeedFilters) {
+  return supabase
+    .from('listings')
+    .select(filters.photos === '1' ? FEED_SELECT_WITH_PHOTOS_ONLY : FEED_SELECT)
+}
+
+type FeedQueryBuilder = ReturnType<typeof baseFeedQuery>
+
+function applyCommonFilters(
+  query: FeedQueryBuilder,
+  filters: FeedFilters,
+  categoryId: number | null,
+): FeedQueryBuilder {
+  const effectiveIntent = filters.price ? 'sale' : filters.intent
+  if (effectiveIntent) query = query.eq('intent', effectiveIntent)
+  if (filters.condition) query = query.eq('condition', filters.condition)
+  if (categoryId !== null) query = query.eq('category_id', categoryId)
+
+  if (filters.price) {
+    const { min, max } = priceBandToRange(filters.price)
+    query = query.gte('ask_centavos', min)
+    if (max !== null) query = query.lte('ask_centavos', max)
+  }
+
+  return query
+}
+
 async function attachImageUrls(listings: FeedListing[]): Promise<FeedListingWithImage[]> {
   const coverPaths = listings
     .map((l) => l.listing_images?.find((i) => i.position === 0)?.storage_path)
@@ -53,22 +80,11 @@ async function runFeedQuery(
   cursor?: FeedCursor,
   prefixQuery?: string,
 ): Promise<FeedPage> {
-  let query = supabase
-    .from('listings')
-    .select(filters.photos === '1' ? FEED_SELECT_WITH_PHOTOS_ONLY : FEED_SELECT)
+  let query = baseFeedQuery(supabase, filters)
     .eq('status', 'active')
     .gt('expires_at', new Date().toISOString())
 
-  const effectiveIntent = filters.price ? 'sale' : filters.intent
-  if (effectiveIntent) query = query.eq('intent', effectiveIntent)
-  if (filters.condition) query = query.eq('condition', filters.condition)
-  if (categoryId !== null) query = query.eq('category_id', categoryId)
-
-  if (filters.price) {
-    const { min, max } = priceBandToRange(filters.price)
-    query = query.gte('ask_centavos', min)
-    if (max !== null) query = query.lte('ask_centavos', max)
-  }
+  query = applyCommonFilters(query, filters, categoryId)
 
   if (prefixQuery) query = query.textSearch('search_tsv', prefixQuery)
 
@@ -99,24 +115,13 @@ async function runFeedQueryByIds(
 ): Promise<FeedPage> {
   if (ids.length === 0) return { listings: [], nextCursor: null }
 
-  let query = supabase
-    .from('listings')
-    .select(filters.photos === '1' ? FEED_SELECT_WITH_PHOTOS_ONLY : FEED_SELECT)
-    .in('id', ids)
+  let query = baseFeedQuery(supabase, filters).in('id', ids)
 
   // The fuzzy RPC only matches on title similarity — it doesn't know about
   // the other active filters, so they're re-applied here exactly like
   // runFeedQuery does. Without this, a filtered search (e.g. intent=swap)
   // could fuzzy-match a sale listing and show it anyway.
-  const effectiveIntent = filters.price ? 'sale' : filters.intent
-  if (effectiveIntent) query = query.eq('intent', effectiveIntent)
-  if (filters.condition) query = query.eq('condition', filters.condition)
-  if (categoryId !== null) query = query.eq('category_id', categoryId)
-  if (filters.price) {
-    const { min, max } = priceBandToRange(filters.price)
-    query = query.gte('ask_centavos', min)
-    if (max !== null) query = query.lte('ask_centavos', max)
-  }
+  query = applyCommonFilters(query, filters, categoryId)
 
   const { data } = await query
   const rows = (data ?? []) as unknown as FeedListing[]

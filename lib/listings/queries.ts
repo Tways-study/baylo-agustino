@@ -78,23 +78,6 @@ export async function getMeetupSpots(): Promise<MeetupSpotRow[]> {
   return data ?? []
 }
 
-export async function getFeedListings(): Promise<FeedListing[]> {
-  const supabase = await createClient()
-  const { data } = await supabase
-    .from('listings')
-    .select(
-      'id, code, intent, title, condition, ask_centavos, bumped_at, ' +
-        'listing_images(storage_path, position), ' +
-        'listing_wants(label, position), ' +
-        'profiles!listings_owner_id_fkey(display_name, verified_at)',
-    )
-    .eq('status', 'active')
-    .gt('expires_at', new Date().toISOString())
-    .order('bumped_at', { ascending: false })
-    .limit(24)
-  return (data ?? []) as unknown as FeedListing[]
-}
-
 export async function getListingByCode(code: string): Promise<ListingDetail | null> {
   const supabase = await createClient()
   const { data } = await supabase
