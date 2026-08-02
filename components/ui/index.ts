@@ -1,4 +1,5 @@
 export { Button } from './Button'
+export { BalanceBeam } from './BalanceBeam'
 export { BottomNav } from './BottomNav'
 export { Chit } from './Chit'
 export { ChitSkeleton } from './ChitSkeleton'
