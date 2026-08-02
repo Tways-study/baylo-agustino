@@ -1,7 +1,7 @@
 # Phase 4 — The Offer Engine Design
 
 **Date:** 2026-08-02
-**Status:** Draft — pending review
+**Status:** Approved
 **Scope:** The thing that makes this not a Facebook group.
 
 ---
