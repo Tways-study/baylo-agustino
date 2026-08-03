@@ -1,7 +1,7 @@
 'use client'
 
 import { Panel, IntentTag, BalanceBeam } from '@/components/ui'
-import { computeBalance } from '@/lib/offers/balance'
+import { computeBalance, type BalanceRead } from '@/lib/offers/balance'
 import { centavosToPesos, formatRelativeTime } from '@/lib/listings/format'
 import { OfferActions } from './OfferActions'
 import type { OfferThreadRow } from '@/lib/offers/queries'
@@ -19,6 +19,7 @@ export interface ThreadListing {
 
 export interface ThreadItem {
   id: string
+  code: string
   title: string
   intent: ListingIntent
   ask_centavos: number | null
@@ -28,7 +29,10 @@ export interface ThreadItem {
 interface OfferThreadProps {
   thread: OfferThreadRow[]
   listing: ThreadListing
-  items: ThreadItem[]
+  // A null slot means RLS hid that item's listing from this viewer (e.g. the
+  // owner archived it) — PostgREST returns the row with `listings: null`
+  // rather than dropping it. Rendered as a placeholder, not skipped.
+  items: (ThreadItem | null)[]
   currentUserId: string
 }
 
@@ -42,21 +46,37 @@ function value(row: {
   return null
 }
 
+// computeBalance is a fixed frame: offerer's items+cash sit in the "YOURS"
+// pan, the listing sits in "THEIRS" — correct for the composer, where only
+// the offerer ever looks. On the deal thread the same read is shown to the
+// listing owner too, so their view needs the pans mirrored. Kept as a small
+// pure mapping rather than touching computeBalance, which must stay a
+// correct fixed-frame primitive for the composer's use.
+function mirrorForOwner(read: BalanceRead): BalanceRead {
+  if (read === 'heavily_yours') return 'heavily_theirs'
+  if (read === 'heavily_theirs') return 'heavily_yours'
+  if (read === 'slightly_yours') return 'slightly_theirs'
+  if (read === 'slightly_theirs') return 'slightly_yours'
+  return read
+}
+
 export function OfferThread({ thread, listing, items, currentUserId }: OfferThreadProps) {
   const leaf = thread[thread.length - 1]
   if (!leaf) return null
 
   const role = leaf.from_user_id === currentUserId ? 'offerer' : 'recipient'
+  const isOwner = currentUserId === listing.owner_id
 
   const balanceRead =
     listing.intent === 'give'
       ? null
       : computeBalance({
           listingValueCentavos: value(listing),
-          offeredItemsValueCentavos: items.map(value),
+          offeredItemsValueCentavos: items.map((item) => (item ? value(item) : null)),
           cashCentavos: leaf.cash_centavos,
           cashDirection: leaf.cash_direction,
         })
+  const displayBalanceRead = balanceRead && (isOwner ? mirrorForOwner(balanceRead) : balanceRead)
 
   return (
     <div style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -69,7 +89,66 @@ export function OfferThread({ thread, listing, items, currentUserId }: OfferThre
         </div>
       </Panel>
 
-      {balanceRead && <BalanceBeam read={balanceRead} />}
+      {displayBalanceRead && <BalanceBeam read={displayBalanceRead} />}
+
+      {items.length > 0 && (
+        <Panel>
+          <p
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '10px',
+              letterSpacing: '0.15em',
+              textTransform: 'uppercase',
+              color: 'var(--ink-45)',
+              margin: '0 0 0.5rem',
+            }}
+          >
+            Items offered
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+            {items.map((item, i) =>
+              item ? (
+                <div
+                  key={item.id}
+                  style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem' }}
+                >
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '10px',
+                      letterSpacing: '0.06em',
+                      color: 'var(--ink-45)',
+                    }}
+                  >
+                    {item.code}
+                  </span>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-body)',
+                      fontSize: '0.875rem',
+                      color: 'var(--ink)',
+                    }}
+                  >
+                    {item.title}
+                  </span>
+                </div>
+              ) : (
+                <div
+                  key={`unavailable-${i}`}
+                  style={{
+                    fontFamily: 'var(--font-body)',
+                    fontSize: '0.875rem',
+                    fontStyle: 'italic',
+                    color: 'var(--ink-45)',
+                  }}
+                >
+                  Item no longer available
+                </div>
+              ),
+            )}
+          </div>
+        </Panel>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
         {thread.map((offer) => (
@@ -112,7 +191,7 @@ export function OfferThread({ thread, listing, items, currentUserId }: OfferThre
         ))}
       </div>
 
-      <OfferActions offer={leaf} role={role} isOwner={currentUserId === listing.owner_id} />
+      <OfferActions offer={leaf} role={role} isOwner={isOwner} />
     </div>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button, Panel, BalanceBeam } from '@/components/ui'
 import { computeBalance } from '@/lib/offers/balance'
@@ -44,16 +44,16 @@ export function OfferComposer({ listing, ownListings }: OfferComposerProps) {
   const selectedItems = ownListings.filter((l) => selectedIds.includes(l.id))
   const cashCentavos = cashPesos ? pesosToCentavos(cashPesos) : 0
 
-  const balanceRead = useMemo(
-    () =>
-      computeBalance({
-        listingValueCentavos: listingValue(listing),
-        offeredItemsValueCentavos: selectedItems.map(itemValue),
-        cashCentavos,
-        cashDirection,
-      }),
-    [listing, selectedItems, cashCentavos, cashDirection],
-  )
+  // Not memoized: selectedItems is rebuilt fresh via .filter() every render
+  // anyway, so a useMemo keyed on it would never actually hit — and the
+  // computation itself (a handful of array ops) is cheap enough not to need
+  // memoizing.
+  const balanceRead = computeBalance({
+    listingValueCentavos: listingValue(listing),
+    offeredItemsValueCentavos: selectedItems.map(itemValue),
+    cashCentavos,
+    cashDirection,
+  })
 
   // Give listings: simplified claim flow (Design Decision 4) — no picker,
   // no cash, no beam.
@@ -175,7 +175,9 @@ export function OfferComposer({ listing, ownListings }: OfferComposerProps) {
                     textAlign: 'center',
                     border: 'var(--stroke)',
                     borderRadius: 'var(--radius)',
-                    backgroundColor: selected ? 'rgba(255,204,0,0.2)' : 'var(--card)',
+                    backgroundColor: selected
+                      ? 'color-mix(in srgb, var(--gold) 20%, transparent)'
+                      : 'var(--card)',
                     boxShadow: selected ? 'var(--shadow-hard)' : 'none',
                     cursor: 'pointer',
                   }}

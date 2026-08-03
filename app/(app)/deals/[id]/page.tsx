@@ -26,9 +26,15 @@ export default async function OfferDetailPage({ params }: { params: Promise<{ id
 
   const { data: itemRows } = await supabase
     .from('offer_items')
-    .select('listings(id, title, intent, ask_centavos, estimated_value_centavos)')
+    .select('listings(id, code, title, intent, ask_centavos, estimated_value_centavos)')
     .eq('root_offer_id', first.root_offer_id)
-  const ownItems = ((itemRows ?? []) as unknown as Array<{ listings: ThreadItem }>).map(
+  // `listings` is a to-one embed — when RLS hides the target listing from the
+  // current viewer (owner archived it, or it's not active/reserved/completed),
+  // PostgREST returns `listings: null` for that row rather than dropping the
+  // row. Keep the null slot (don't filter it out) so computeBalance can see
+  // there's a gap and degrade to 'cant_gauge' instead of silently omitting an
+  // item and overstating the balance; OfferThread renders a placeholder for it.
+  const ownItems = ((itemRows ?? []) as unknown as Array<{ listings: ThreadItem | null }>).map(
     (r) => r.listings,
   )
 

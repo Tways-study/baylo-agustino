@@ -1,12 +1,13 @@
 -- supabase/tests/phase4_offers_rls.sql
 begin;
 -- Brief specified plan(16); this file's actual assertion count (see the
--- full list of select ok()/is()/lives_ok()/throws_ok()/throws_like() calls
--- below) is 30, after the fix-round additions covering UPDATE/DELETE
--- privilege revocation and functional SELECT-RLS coverage for offers,
--- offer_items, and notifications. Corrected so finish() doesn't report a
--- planned/run mismatch.
-select plan(30);
+-- full list of select ok()/is()/lives_ok()/throws_ok()/throws_like()/
+-- results_eq() calls below) is 35, after the fix-round additions covering
+-- UPDATE/DELETE privilege revocation and functional SELECT-RLS coverage for
+-- offers, offer_items, and notifications, plus the final-review addition of
+-- 5 assertions proving the immutable root->counter->counter chain invariant.
+-- Corrected so finish() doesn't report a planned/run mismatch.
+select plan(35);
 
 -- ═══ fixtures ═══
 -- supabase/seed.sql seeds profile rows for 11111111.../22222222... but no
@@ -166,6 +167,102 @@ select is(
   (select count(*)::int from public.get_offer_thread('99999999-9999-9999-9999-999999999901'::uuid)),
   1,
   'get_offer_thread on a single-row (now-expired) thread returns exactly that row'
+);
+
+-- ═══ immutable negotiation chain — root → counter → counter ═══
+-- CLAUDE.md: "Countering is immutable: inserts a child offer, marks parent
+-- countered. Never mutate the parent." This exercises the real
+-- counter_offer RPC twice (not a hand-rolled insert) to build a genuine
+-- 3-row chain and proves both that get_offer_thread returns it root-to-leaf
+-- in order, and that the two now-'countered' rows' cash_centavos / note /
+-- from_user_id / to_user_id are byte-for-byte unchanged after each
+-- subsequent counter — i.e. countering only ever flips status/responded_at
+-- on the parent and inserts a new row, never mutates the parent's terms.
+--
+-- A fresh root offer on listing 802 (owner user2). The earlier root offer at
+-- 99999999...901 was expired by expire_stale_offers() above, so it no
+-- longer holds the one_live_offer_per_pair slot for
+-- (listing_id=802, from_user_id=user1) and this insert doesn't collide with
+-- it under that unique index.
+insert into public.offers (
+  id, listing_id, root_offer_id, from_user_id, to_user_id,
+  cash_centavos, cash_direction, note
+) values (
+  'aaaaaaaa-1111-1111-1111-111111111101'::uuid,
+  '88888888-8888-8888-8888-888888888802'::uuid,
+  'aaaaaaaa-1111-1111-1111-111111111101'::uuid,
+  '11111111-1111-1111-1111-111111111111'::uuid,
+  '22222222-2222-2222-2222-222222222222'::uuid,
+  500, 'from_offerer', 'original note'
+);
+
+-- user2 (the root's to_user_id) counters — counter_offer marks the root
+-- 'countered' and inserts a new pending child row.
+select set_config('request.jwt.claims', json_build_object('sub', '22222222-2222-2222-2222-222222222222')::text, true);
+select public.counter_offer('aaaaaaaa-1111-1111-1111-111111111101'::uuid, 300, 'to_offerer', 'counter note 1');
+
+-- user1 (now the first counter's to_user_id, per counter_offer's swap)
+-- counters back — marks that counter 'countered' and inserts the leaf,
+-- which stays pending.
+select set_config('request.jwt.claims', json_build_object('sub', '11111111-1111-1111-1111-111111111111')::text, true);
+select public.counter_offer(
+  (select id from public.offers where parent_offer_id = 'aaaaaaaa-1111-1111-1111-111111111101'::uuid),
+  750, 'from_offerer', 'counter note 2'
+);
+
+select is(
+  (select count(*)::int from public.get_offer_thread('aaaaaaaa-1111-1111-1111-111111111101'::uuid)),
+  3,
+  'get_offer_thread on a root->counter->counter chain returns all 3 rows'
+);
+
+select results_eq(
+  $$
+  select id from public.get_offer_thread('aaaaaaaa-1111-1111-1111-111111111101'::uuid) order by created_at asc
+  $$,
+  $$
+  values
+    ('aaaaaaaa-1111-1111-1111-111111111101'::uuid),
+    ((select id from public.offers where parent_offer_id = 'aaaaaaaa-1111-1111-1111-111111111101'::uuid)),
+    ((select id from public.offers where parent_offer_id =
+      (select id from public.offers where parent_offer_id = 'aaaaaaaa-1111-1111-1111-111111111101'::uuid)))
+  $$,
+  'chain is ordered root -> counter1 -> counter2 (created_at asc, root-to-leaf)'
+);
+
+select results_eq(
+  $$
+  select status::text from public.get_offer_thread('aaaaaaaa-1111-1111-1111-111111111101'::uuid) order by created_at asc
+  $$,
+  $$ values ('countered'::text), ('countered'::text), ('pending'::text) $$,
+  'chain statuses: root=countered, counter1=countered, leaf(counter2)=pending'
+);
+
+select results_eq(
+  $$
+  select cash_centavos, cash_direction, note, from_user_id, to_user_id
+  from public.offers where id = 'aaaaaaaa-1111-1111-1111-111111111101'::uuid
+  $$,
+  $$
+  select 500, 'from_offerer'::text, 'original note'::text,
+    '11111111-1111-1111-1111-111111111111'::uuid,
+    '22222222-2222-2222-2222-222222222222'::uuid
+  $$,
+  'root offer''s cash/direction/note/from/to are byte-for-byte unmutated after being countered'
+);
+
+select results_eq(
+  $$
+  select cash_centavos, cash_direction, note, from_user_id, to_user_id
+  from public.offers
+  where id = (select id from public.offers where parent_offer_id = 'aaaaaaaa-1111-1111-1111-111111111101'::uuid)
+  $$,
+  $$
+  select 300, 'to_offerer'::text, 'counter note 1'::text,
+    '22222222-2222-2222-2222-222222222222'::uuid,
+    '11111111-1111-1111-1111-111111111111'::uuid
+  $$,
+  'first counter''s cash/direction/note/from/to are byte-for-byte unmutated after being countered by the second counter'
 );
 
 -- ═══ functional RLS: a third party (no relation to the offer at all) ═══

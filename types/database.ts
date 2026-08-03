@@ -420,7 +420,7 @@ export interface Database {
           p_listing_id: string
           p_item_listing_ids: string[] | null
           p_cash_centavos: number | null
-          p_cash_direction: string | null
+          p_cash_direction: CashDirection | null
           p_note: string | null
         }
         Returns: string
@@ -429,7 +429,7 @@ export interface Database {
         Args: {
           p_offer_id: string
           p_cash_centavos: number | null
-          p_cash_direction: string | null
+          p_cash_direction: CashDirection | null
           p_note: string | null
         }
         Returns: string

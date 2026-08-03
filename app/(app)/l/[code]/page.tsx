@@ -263,16 +263,27 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
             >
               Message
             </Button>
-            <Link href={`/l/${listing.code}/offer`} style={{ flex: 1 }}>
-              <Button
-                type="button"
-                variant="primary"
-                fullWidth
-                disabled={listing.status !== 'active' || isExpired}
+            {listing.status === 'active' && !isExpired ? (
+              <Link
+                href={`/l/${listing.code}/offer`}
+                className="inline-flex items-center justify-center gap-2 font-body font-medium text-sm px-4 py-2.5 transition-all duration-100 select-none cursor-pointer active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
+                style={{
+                  flex: 1,
+                  backgroundColor: 'var(--crimson)',
+                  color: 'var(--card)',
+                  border: 'var(--stroke)',
+                  borderRadius: 'var(--radius)',
+                  boxShadow: 'var(--shadow-hard)',
+                  textDecoration: 'none',
+                }}
               >
                 Make an offer
+              </Link>
+            ) : (
+              <Button type="button" variant="primary" fullWidth disabled>
+                Make an offer
               </Button>
-            </Link>
+            )}
           </div>
         )}
       </div>
