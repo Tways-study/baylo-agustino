@@ -1,9 +1,12 @@
 import { notFound, redirect } from 'next/navigation'
 import { getAuthUser } from '@/lib/auth/session'
 import { getOfferThread } from '@/lib/offers/queries'
+import { getMeetup, getMessages, getDealConfirmations, getCancellation } from '@/lib/deals/queries'
+import { getMeetupSpots } from '@/lib/listings/queries'
 import { createClient } from '@/lib/supabase/server'
 import { Ribbon } from '@/components/ui'
 import { OfferThread, type ThreadListing, type ThreadItem } from './OfferThread'
+import { CancelMenuButton } from './CancelMenuButton'
 
 export default async function OfferDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -15,6 +18,8 @@ export default async function OfferDetailPage({ params }: { params: Promise<{ id
 
   const first = thread[0]
   if (!first || (first.from_user_id !== user.id && first.to_user_id !== user.id)) notFound()
+  const leaf = thread[thread.length - 1]
+  if (!leaf) notFound()
 
   const supabase = await createClient()
   const { data: listing } = await supabase
@@ -38,16 +43,34 @@ export default async function OfferDetailPage({ params }: { params: Promise<{ id
     (r) => r.listings,
   )
 
+  const [meetup, messages, confirmations, cancellation, meetupSpots] = await Promise.all([
+    getMeetup(leaf.id),
+    getMessages(leaf.id),
+    getDealConfirmations(leaf.id),
+    getCancellation(leaf.id),
+    getMeetupSpots(),
+  ])
+  const hasConfirmedSwap = confirmations.some((c) => c.user_id === user.id)
+
   return (
     <>
       <header>
-        <Ribbon>Offer</Ribbon>
+        <Ribbon
+          end={leaf.status === 'accepted' ? <CancelMenuButton offerId={leaf.id} /> : undefined}
+        >
+          Offer
+        </Ribbon>
       </header>
       <OfferThread
         thread={thread}
         listing={listing as unknown as ThreadListing}
         items={ownItems}
         currentUserId={user.id}
+        meetup={meetup}
+        meetupSpots={meetupSpots}
+        messages={messages}
+        hasConfirmedSwap={hasConfirmedSwap}
+        cancellation={cancellation}
       />
     </>
   )

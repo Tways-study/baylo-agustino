@@ -1,11 +1,22 @@
 'use client'
 
-import { Panel, IntentTag, BalanceBeam } from '@/components/ui'
+import { Panel, IntentTag, BalanceBeam, Stamp } from '@/components/ui'
 import { computeBalance, type BalanceRead } from '@/lib/offers/balance'
 import { centavosToPesos, formatRelativeTime } from '@/lib/listings/format'
 import { OfferActions } from './OfferActions'
+import { DealStepper } from './DealStepper'
+import { DealControls } from './DealControls'
+import { PinnedMeetupCard } from './PinnedMeetupCard'
+import { DealChat } from './DealChat'
+import { dealSteps } from '@/lib/deals/stepper'
 import type { OfferThreadRow } from '@/lib/offers/queries'
-import type { ListingIntent } from '@/types/database'
+import type { MeetupWithSpot } from '@/lib/deals/queries'
+import type {
+  ListingIntent,
+  MeetupSpotRow,
+  MessageRow,
+  OfferCancellationRow,
+} from '@/types/database'
 
 export interface ThreadListing {
   id: string
@@ -34,6 +45,11 @@ interface OfferThreadProps {
   // rather than dropping it. Rendered as a placeholder, not skipped.
   items: (ThreadItem | null)[]
   currentUserId: string
+  meetup: MeetupWithSpot | null
+  meetupSpots: MeetupSpotRow[]
+  messages: MessageRow[]
+  hasConfirmedSwap: boolean
+  cancellation: OfferCancellationRow | null
 }
 
 function value(row: {
@@ -60,12 +76,23 @@ function mirrorForOwner(read: BalanceRead): BalanceRead {
   return read
 }
 
-export function OfferThread({ thread, listing, items, currentUserId }: OfferThreadProps) {
+export function OfferThread({
+  thread,
+  listing,
+  items,
+  currentUserId,
+  meetup,
+  meetupSpots,
+  messages,
+  hasConfirmedSwap,
+  cancellation,
+}: OfferThreadProps) {
   const leaf = thread[thread.length - 1]
   if (!leaf) return null
 
   const role = leaf.from_user_id === currentUserId ? 'offerer' : 'recipient'
   const isOwner = currentUserId === listing.owner_id
+  const steps = dealSteps({ status: leaf.status })
 
   const balanceRead =
     listing.intent === 'give'
@@ -191,7 +218,53 @@ export function OfferThread({ thread, listing, items, currentUserId }: OfferThre
         ))}
       </div>
 
+      {steps.cancelled ? (
+        <Panel>
+          <Stamp label="Cancelled" variant="crimson" rotate={-6} />
+          {cancellation && (
+            <p
+              style={{
+                fontFamily: 'var(--font-body)',
+                fontSize: '0.8125rem',
+                color: 'var(--ink-70)',
+                margin: '0.5rem 0 0',
+              }}
+            >
+              {cancellation.reason_text || 'No additional details given.'}
+            </p>
+          )}
+        </Panel>
+      ) : (
+        (leaf.status === 'accepted' || leaf.status === 'completed') && (
+          <Panel>
+            <DealStepper {...steps} />
+          </Panel>
+        )
+      )}
+
+      {leaf.status === 'accepted' && (
+        <PinnedMeetupCard
+          offerId={leaf.id}
+          meetup={meetup}
+          meetupSpots={meetupSpots}
+          currentUserId={currentUserId}
+          ownerId={listing.owner_id}
+        />
+      )}
+
+      {(leaf.status === 'pending' || leaf.status === 'accepted' || leaf.status === 'completed') && (
+        <Panel>
+          <DealChat
+            offerId={leaf.id}
+            initialMessages={messages}
+            currentUserId={currentUserId}
+            canSend={leaf.status === 'pending' || leaf.status === 'accepted'}
+          />
+        </Panel>
+      )}
+
       <OfferActions offer={leaf} role={role} isOwner={isOwner} />
+      <DealControls offerId={leaf.id} status={leaf.status} hasConfirmedSwap={hasConfirmedSwap} />
     </div>
   )
 }
