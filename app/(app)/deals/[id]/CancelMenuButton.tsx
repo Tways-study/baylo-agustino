@@ -52,9 +52,9 @@ export function CancelMenuButton({ offerId }: CancelMenuButtonProps) {
         style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.25rem' }}
       >
         <svg viewBox="0 0 24 24" width="18" height="18">
-          <circle cx="12" cy="5" r="1.4" fill="#fff" />
-          <circle cx="12" cy="12" r="1.4" fill="#fff" />
-          <circle cx="12" cy="19" r="1.4" fill="#fff" />
+          <circle cx="12" cy="5" r="1.4" fill="var(--card)" />
+          <circle cx="12" cy="12" r="1.4" fill="var(--card)" />
+          <circle cx="12" cy="19" r="1.4" fill="var(--card)" />
         </svg>
       </button>
 
