@@ -89,6 +89,11 @@ export function OfferThread({
 }: OfferThreadProps) {
   const leaf = thread[thread.length - 1]
   if (!leaf) return null
+  // The root row of the thread — its id is stable across counters (unlike
+  // leaf.id, which changes every time the offer is countered) and is what
+  // messages are scoped to, since chat history must survive a counter.
+  const first = thread[0]
+  if (!first) return null
 
   const role = leaf.from_user_id === currentUserId ? 'offerer' : 'recipient'
   const isOwner = currentUserId === listing.owner_id
@@ -252,16 +257,18 @@ export function OfferThread({
         />
       )}
 
-      {(leaf.status === 'pending' || leaf.status === 'accepted' || leaf.status === 'completed') && (
-        <Panel>
-          <DealChat
-            offerId={leaf.id}
-            initialMessages={messages}
-            currentUserId={currentUserId}
-            canSend={leaf.status === 'pending' || leaf.status === 'accepted'}
-          />
-        </Panel>
-      )}
+      {/* Chat stays visible as read-only history for any status the deal
+          room reaches — a cancelled/declined/withdrawn/expired deal's
+          conversation still explains what happened. Only the ability to
+          send (canSend) is restricted to the live-negotiation window. */}
+      <Panel>
+        <DealChat
+          offerId={first.id}
+          initialMessages={messages}
+          currentUserId={currentUserId}
+          canSend={leaf.status === 'pending' || leaf.status === 'accepted'}
+        />
+      </Panel>
 
       <OfferActions offer={leaf} role={role} isOwner={isOwner} />
       <DealControls offerId={leaf.id} status={leaf.status} hasConfirmedSwap={hasConfirmedSwap} />

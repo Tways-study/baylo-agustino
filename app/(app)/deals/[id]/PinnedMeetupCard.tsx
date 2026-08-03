@@ -37,7 +37,20 @@ const inputStyle = {
 }
 
 function toDatetimeLocalMin(): string {
-  return new Date().toISOString().slice(0, 16)
+  // `datetime-local`'s `min` attribute is interpreted in the browser's LOCAL
+  // timezone — toISOString() returns UTC, which under-restricts by a
+  // timezone offset (8h short in Asia/Manila), letting a user pick a time
+  // up to 8h in the past. Build the local string from local-time getters
+  // instead.
+  const now = new Date()
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`
+}
+
+function toDatetimeLocalValue(iso: string): string {
+  const d = new Date(iso)
+  const pad = (n: number) => n.toString().padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 export function PinnedMeetupCard({
@@ -52,6 +65,11 @@ export function PinnedMeetupCard({
   const [error, setError] = useState<string | null>(null)
   const [spotId, setSpotId] = useState<string>(meetupSpots[0]?.id.toString() ?? '')
   const [when, setWhen] = useState('')
+  // Reveals the propose form again on top of an existing meetup — the
+  // propose_meetup RPC upserts and resets the other side's confirmation, so
+  // re-proposing (changing time/spot) is fully supported server-side; this
+  // just gives the UI a path back to it.
+  const [rescheduling, setRescheduling] = useState(false)
 
   const isOwner = currentUserId === ownerId
   const myConfirmed = meetup
@@ -60,6 +78,15 @@ export function PinnedMeetupCard({
       : meetup.confirmed_by_offerer
     : false
   const bothConfirmed = meetup ? meetup.confirmed_by_offerer && meetup.confirmed_by_owner : false
+  const showForm = !meetup || rescheduling
+
+  function handleStartReschedule() {
+    if (!meetup) return
+    setError(null)
+    setSpotId(meetup.spot.id.toString())
+    setWhen(toDatetimeLocalValue(meetup.scheduled_at))
+    setRescheduling(true)
+  }
 
   function handlePropose() {
     if (!spotId || !when) return
@@ -71,7 +98,10 @@ export function PinnedMeetupCard({
         scheduledAt: new Date(when).toISOString(),
       })
       if (res.error) setError(res.error)
-      else router.refresh()
+      else {
+        setRescheduling(false)
+        router.refresh()
+      }
     })
   }
 
@@ -112,7 +142,7 @@ export function PinnedMeetupCard({
         </p>
       )}
 
-      {!meetup ? (
+      {showForm ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <p
             style={{
@@ -124,7 +154,7 @@ export function PinnedMeetupCard({
               margin: 0,
             }}
           >
-            Pick a time and place
+            {meetup ? 'Change time and place' : 'Pick a time and place'}
           </p>
           <div>
             <label htmlFor="meetup-spot" style={labelStyle}>
@@ -163,8 +193,22 @@ export function PinnedMeetupCard({
             disabled={isPending || !spotId || !when}
             onClick={handlePropose}
           >
-            Propose
+            {meetup ? 'Save new time' : 'Propose'}
           </Button>
+          {meetup && (
+            <Button
+              type="button"
+              variant="secondary"
+              fullWidth
+              disabled={isPending}
+              onClick={() => {
+                setError(null)
+                setRescheduling(false)
+              }}
+            >
+              Cancel
+            </Button>
+          )}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
@@ -181,9 +225,15 @@ export function PinnedMeetupCard({
             {new Intl.DateTimeFormat('en-PH', {
               timeZone: 'Asia/Manila',
               weekday: 'short',
+              month: 'short',
+              day: 'numeric',
               hour: 'numeric',
               minute: '2-digit',
-            }).format(new Date(meetup.scheduled_at))}
+            })
+              .format(new Date(meetup.scheduled_at))
+              // "Sun, Sep 20, 10:30 AM" -> "Sun, Sep 20 · 10:30 AM" — swap
+              // the comma before the time for a mono-style separator.
+              .replace(/,(?=[^,]*$)/, ' ·')}
           </p>
           <h4 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, margin: 0 }}>
             {meetup.spot.name}
@@ -202,20 +252,60 @@ export function PinnedMeetupCard({
           )}
 
           {bothConfirmed ? (
-            <Button type="button" variant="secondary" onClick={handleDownloadIcs}>
-              Add to calendar
-            </Button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <Button type="button" variant="secondary" onClick={handleDownloadIcs}>
+                Add to calendar
+              </Button>
+              <button
+                type="button"
+                onClick={handleStartReschedule}
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '10px',
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  color: 'var(--ink-45)',
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                Change time
+              </button>
+            </div>
           ) : myConfirmed ? (
-            <p
-              style={{
-                fontFamily: 'var(--font-body)',
-                fontSize: '0.875rem',
-                color: 'var(--ink-45)',
-                margin: 0,
-              }}
-            >
-              Waiting for the other side to confirm.
-            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <p
+                style={{
+                  fontFamily: 'var(--font-body)',
+                  fontSize: '0.875rem',
+                  color: 'var(--ink-45)',
+                  margin: 0,
+                }}
+              >
+                Waiting for the other side to confirm.
+              </p>
+              <button
+                type="button"
+                onClick={handleStartReschedule}
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '10px',
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  color: 'var(--ink-45)',
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                Change time
+              </button>
+            </div>
           ) : (
             <Button type="button" variant="primary" disabled={isPending} onClick={handleConfirm}>
               Confirm

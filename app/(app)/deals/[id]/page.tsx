@@ -45,7 +45,11 @@ export default async function OfferDetailPage({ params }: { params: Promise<{ id
 
   const [meetup, messages, confirmations, cancellation, meetupSpots] = await Promise.all([
     getMeetup(leaf.id),
-    getMessages(leaf.id),
+    // Messages are scoped to the whole negotiation thread (root offer id),
+    // not the leaf — a counter inserts a new leaf row and would otherwise
+    // orphan the prior conversation. `first.id === first.root_offer_id`
+    // since `first` is always the root row of the thread.
+    getMessages(first.id),
     getDealConfirmations(leaf.id),
     getCancellation(leaf.id),
     getMeetupSpots(),

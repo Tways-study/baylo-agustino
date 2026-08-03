@@ -7,7 +7,7 @@ import { Button } from '@/components/ui'
 import type { MessageRow } from '@/types/database'
 import { formatRelativeTime } from '@/lib/listings/format'
 
-type ChatMessage = MessageRow & { pending?: boolean }
+type ChatMessage = MessageRow & { pending?: boolean; failed?: boolean }
 
 interface DealChatProps {
   offerId: string
@@ -59,8 +59,27 @@ export function DealChat({ offerId, initialMessages, currentUserId, canSend }: D
   async function deliver(message: ChatMessage) {
     const res = await sendMessage(supabase, currentUserId, { offerId, body: message.body })
     if (res.error) {
-      queueRef.current.push(message)
+      // A browser genuinely offline is a connectivity problem — queue for
+      // retry-on-reconnect. Anything else (RLS denial because the deal just
+      // got cancelled, validation failure, expired session, ...) is a
+      // confirmed server-side rejection: queuing it silently would leave it
+      // stuck in "Sending…" forever, since the browser never goes
+      // offline/online in that scenario. Mark it failed and visible instead.
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        queueRef.current.push(message)
+      } else {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === message.id ? { ...m, pending: false, failed: true } : m)),
+        )
+      }
     }
+  }
+
+  function handleRetry(message: ChatMessage) {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === message.id ? { ...m, pending: true, failed: false } : m)),
+    )
+    void deliver({ ...message, pending: true, failed: false })
   }
 
   useEffect(() => {
@@ -135,15 +154,17 @@ export function DealChat({ offerId, initialMessages, currentUserId, canSend }: D
           return (
             <div
               key={m.id}
+              onClick={m.failed ? () => handleRetry(m) : undefined}
               style={{
                 alignSelf: mine ? 'flex-end' : 'flex-start',
                 maxWidth: '80%',
                 opacity: m.pending ? 0.6 : 1,
-                backgroundColor: mine ? 'var(--crimson)' : 'var(--card)',
-                color: mine ? 'var(--card)' : 'var(--ink)',
-                border: 'var(--stroke)',
+                backgroundColor: m.failed ? 'var(--card)' : mine ? 'var(--crimson)' : 'var(--card)',
+                color: m.failed ? 'var(--crimson)' : mine ? 'var(--card)' : 'var(--ink)',
+                border: m.failed ? '1.5px solid var(--crimson)' : 'var(--stroke)',
                 borderRadius: 'var(--radius)',
                 padding: '0.5rem 0.75rem',
+                cursor: m.failed ? 'pointer' : undefined,
               }}
             >
               <p style={{ fontFamily: 'var(--font-body)', fontSize: '0.875rem', margin: 0 }}>
@@ -157,7 +178,11 @@ export function DealChat({ offerId, initialMessages, currentUserId, canSend }: D
                   margin: '0.25rem 0 0',
                 }}
               >
-                {m.pending ? 'Sending…' : formatRelativeTime(m.created_at)}
+                {m.pending
+                  ? 'Sending…'
+                  : m.failed
+                    ? 'Failed to send — tap to retry'
+                    : formatRelativeTime(m.created_at)}
               </p>
             </div>
           )
