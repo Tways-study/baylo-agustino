@@ -13,9 +13,27 @@ export async function signInAsFixtureUser(page: Page, email: string) {
     process.env['NEXT_PUBLIC_SUPABASE_URL']!,
     process.env['SUPABASE_SERVICE_ROLE_KEY']!,
   )
-  const { data, error } = await admin.auth.admin.generateLink({ type: 'magiclink', email })
+  const { data, error } = await admin.auth.admin.generateLink({
+    type: 'magiclink',
+    email,
+    // Admin-generated links carry the session as an implicit-flow hash
+    // fragment (#access_token=...&refresh_token=...) on redirect — there's
+    // no PKCE code_verifier for an admin-side call to hold. The app's real
+    // login UI (/login) is the one route that reads that hash and converts
+    // it into a real session; redirecting to '/' would hit middleware's
+    // unauthenticated redirect first and lose the fragment before any
+    // client code runs.
+    options: { redirectTo: 'http://localhost:3000/login' },
+  })
   if (error || !data) {
     throw new Error(`Could not mint a session for ${email}: ${error?.message}`)
   }
   await page.goto(data.properties.action_link)
+  // page.goto() only resolves once /login's initial load finishes — the
+  // hash-token pickup that establishes the real session (app/(auth)/login/
+  // page.tsx) runs after that, in a post-mount effect that awaits
+  // supabase.auth.setSession() before hard-navigating away from /login.
+  // Wait for that navigation so callers get a real, authenticated session
+  // instead of racing ahead of it.
+  await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 15_000 })
 }

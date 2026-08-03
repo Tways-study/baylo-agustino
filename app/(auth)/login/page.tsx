@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from 'react'
 import { sendOtp, verifyOtp } from '@/lib/auth/actions'
+import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui'
 
 function maskEmail(email: string): string {
@@ -18,6 +19,30 @@ export default function LoginPage() {
 
   const [sendState, sendAction, isSendPending] = useActionState(sendOtp, null)
   const [verifyState, verifyAction, isVerifyPending] = useActionState(verifyOtp, null)
+
+  // Pick up an implicit-flow session from the URL hash, if present. Admin-
+  // generated magic links (E2E fixture sign-in only — see e2e/helpers/auth.ts)
+  // redirect here with #access_token=...&refresh_token=... instead of
+  // hitting a Server Action, since there's no code_verifier for an
+  // admin-side link generation to pair with a PKCE exchange. The normal
+  // OTP email/code flow never produces a hash, so this is a no-op for it.
+  useEffect(() => {
+    const hash = window.location.hash
+    if (!hash) return
+
+    const params = new URLSearchParams(hash.slice(1))
+    const access_token = params.get('access_token')
+    const refresh_token = params.get('refresh_token')
+    if (!access_token || !refresh_token) return
+
+    void (async () => {
+      const supabase = createClient()
+      const { error } = await supabase.auth.setSession({ access_token, refresh_token })
+      if (error) return
+      window.history.replaceState(null, '', window.location.pathname)
+      window.location.href = '/'
+    })()
+  }, [])
 
   // Transition to OTP stage after successful send
   useEffect(() => {
