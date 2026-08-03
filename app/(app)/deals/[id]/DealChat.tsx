@@ -60,9 +60,7 @@ export function DealChat({ offerId, initialMessages, currentUserId, canSend }: D
     const res = await sendMessage(supabase, currentUserId, { offerId, body: message.body })
     if (res.error) {
       queueRef.current.push(message)
-      return
     }
-    setMessages((prev) => prev.map((m) => (m.id === message.id ? { ...m, pending: false } : m)))
   }
 
   useEffect(() => {
