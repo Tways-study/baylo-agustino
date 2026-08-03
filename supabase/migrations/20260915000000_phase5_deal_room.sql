@@ -61,10 +61,14 @@ create policy "a party can send a message while the deal is open"
   with check (
     sender_id = auth.uid()
     and exists (
-      select 1 from public.offers
-      where offers.id = messages.offer_id
-        and auth.uid() in (offers.from_user_id, offers.to_user_id)
-        and offers.status in ('pending', 'accepted')
+      select 1 from public.offers root
+      where root.id = messages.offer_id
+        and auth.uid() in (root.from_user_id, root.to_user_id)
+    )
+    and exists (
+      select 1 from public.offers leaf
+      where leaf.root_offer_id = messages.offer_id
+        and leaf.status in ('pending', 'accepted')
     )
   );
 

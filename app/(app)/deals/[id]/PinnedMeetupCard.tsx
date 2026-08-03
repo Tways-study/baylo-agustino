@@ -222,18 +222,27 @@ export function PinnedMeetupCard({
               margin: 0,
             }}
           >
-            {new Intl.DateTimeFormat('en-PH', {
-              timeZone: 'Asia/Manila',
-              weekday: 'short',
-              month: 'short',
-              day: 'numeric',
-              hour: 'numeric',
-              minute: '2-digit',
-            })
-              .format(new Date(meetup.scheduled_at))
-              // "Sun, Sep 20, 10:30 AM" -> "Sun, Sep 20 · 10:30 AM" — swap
-              // the comma before the time for a mono-style separator.
-              .replace(/,(?=[^,]*$)/, ' ·')}
+            {(() => {
+              const d = new Date(meetup.scheduled_at)
+              // Format date and time as two separate Intl.DateTimeFormat
+              // calls and join explicitly, rather than formatting once and
+              // post-processing the string — a single combined format's
+              // exact punctuation (how many commas, where) is an ICU
+              // implementation detail that varies across browsers/locales,
+              // so it can't be relied on for string surgery.
+              const datePart = new Intl.DateTimeFormat('en-PH', {
+                timeZone: 'Asia/Manila',
+                weekday: 'short',
+                month: 'short',
+                day: 'numeric',
+              }).format(d)
+              const timePart = new Intl.DateTimeFormat('en-PH', {
+                timeZone: 'Asia/Manila',
+                hour: 'numeric',
+                minute: '2-digit',
+              }).format(d)
+              return `${datePart} · ${timePart}`
+            })()}
           </p>
           <h4 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, margin: 0 }}>
             {meetup.spot.name}
