@@ -71,7 +71,8 @@ create policy "a party can send a message while the deal is open"
 -- Column-level, not table-level: a client must not be able to backdate
 -- created_at or pre-mark its own message read. read_at has no UPDATE grant
 -- yet — nothing in this phase marks messages read; add a narrow grant
--- (mirrors notifications.read_at below) if read-receipts ship later.
+-- (mirrors notifications.read_at in 20260901000000_phase4_offers.sql:117)
+-- if read-receipts ship later.
 grant insert (offer_id, sender_id, body) on public.messages to authenticated;
 
 -- Realtime: postgres_changes only fires for tables in this publication.
@@ -150,6 +151,10 @@ declare
   v_owner_id uuid;
   v_is_owner boolean;
 begin
+  if v_caller is null then
+    raise exception 'Not authenticated.';
+  end if;
+
   select o.from_user_id, o.to_user_id, o.status, l.owner_id
     into v_from_user, v_to_user, v_status, v_owner_id
     from public.offers o
@@ -192,6 +197,8 @@ end;
 $$;
 
 grant execute on function public.propose_meetup(uuid, smallint, timestamptz) to authenticated;
+revoke execute on function public.propose_meetup(uuid, smallint, timestamptz) from public;
+revoke execute on function public.propose_meetup(uuid, smallint, timestamptz) from anon;
 
 -- ═══ confirm_meetup ═══
 create or replace function public.confirm_meetup(p_offer_id uuid)
@@ -208,6 +215,10 @@ declare
   v_owner_id uuid;
   v_is_owner boolean;
 begin
+  if v_caller is null then
+    raise exception 'Not authenticated.';
+  end if;
+
   select o.from_user_id, o.to_user_id, o.status, l.owner_id
     into v_from_user, v_to_user, v_status, v_owner_id
     from public.offers o
@@ -238,6 +249,8 @@ end;
 $$;
 
 grant execute on function public.confirm_meetup(uuid) to authenticated;
+revoke execute on function public.confirm_meetup(uuid) from public;
+revoke execute on function public.confirm_meetup(uuid) from anon;
 
 -- ═══ mark_swapped ═══
 create or replace function public.mark_swapped(p_offer_id uuid)
@@ -252,6 +265,10 @@ declare
   v_to_user uuid;
   v_status public.offer_status;
 begin
+  if v_caller is null then
+    raise exception 'Not authenticated.';
+  end if;
+
   select from_user_id, to_user_id, status into v_from_user, v_to_user, v_status
     from public.offers where id = p_offer_id;
 
@@ -272,6 +289,8 @@ end;
 $$;
 
 grant execute on function public.mark_swapped(uuid) to authenticated;
+revoke execute on function public.mark_swapped(uuid) from public;
+revoke execute on function public.mark_swapped(uuid) from anon;
 
 -- ═══ completion trigger — the only path to offers.status = 'completed' ═══
 create or replace function public.complete_deal_on_double_confirmation()
@@ -329,6 +348,10 @@ declare
   v_scheduled_at timestamptz;
   v_was_late boolean;
 begin
+  if v_caller is null then
+    raise exception 'Not authenticated.';
+  end if;
+
   select o.from_user_id, o.to_user_id, o.listing_id, o.status
     into v_from_user, v_to_user, v_listing_id, v_status
     from public.offers o where o.id = p_offer_id;
@@ -361,3 +384,5 @@ end;
 $$;
 
 grant execute on function public.cancel_deal(uuid, text, text) to authenticated;
+revoke execute on function public.cancel_deal(uuid, text, text) from public;
+revoke execute on function public.cancel_deal(uuid, text, text) from anon;
