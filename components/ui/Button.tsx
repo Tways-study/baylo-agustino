@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes, CSSProperties, ReactNode } from 'react'
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost'
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'gold'
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant
@@ -13,6 +13,7 @@ const VARIANT_STYLES: Record<ButtonVariant, { bg: string; color: string }> = {
   primary: { bg: 'var(--crimson)', color: 'var(--card)' },
   secondary: { bg: 'var(--paper)', color: 'var(--ink)' },
   ghost: { bg: 'transparent', color: 'var(--ink)' },
+  gold: { bg: 'var(--gold)', color: 'var(--ink)' },
 }
 
 export function Button({

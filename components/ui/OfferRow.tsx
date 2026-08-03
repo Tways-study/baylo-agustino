@@ -21,6 +21,7 @@ const STATUS_STYLE: Record<OfferStatus, { label: string; bg: string; color: stri
   expired: { label: 'EXPIRED', bg: 'var(--paper-dim)', color: 'var(--ink-45)' },
   cancelled: { label: 'CANCELLED', bg: 'var(--paper-dim)', color: 'var(--ink-45)' },
   countered: { label: 'COUNTERED', bg: 'var(--paper-dim)', color: 'var(--ink-45)' },
+  completed: { label: 'SWAPPED', bg: 'var(--gold)', color: 'var(--ink)' },
 }
 
 function timeUntil(iso: string): string {

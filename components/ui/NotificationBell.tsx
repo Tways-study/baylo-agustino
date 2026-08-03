@@ -16,6 +16,9 @@ const KIND_COPY: Record<NotificationRow['kind'], string> = {
   offer_declined: 'declined your offer',
   offer_withdrawn: 'withdrew their offer',
   offer_expired: 'your offer expired',
+  meetup_proposed: 'proposed a meetup time',
+  deal_completed: 'the deal is complete',
+  deal_cancelled: 'cancelled the deal',
 }
 
 export function NotificationBell({ notifications }: NotificationBellProps) {
