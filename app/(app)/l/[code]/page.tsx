@@ -62,7 +62,9 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                 {priceLabel}
               </span>
             )}
-            {isExpired && <Stamp label="Expired" variant="crimson" rotate={-6} />}
+            {isExpired && listing.status !== 'reserved' && (
+              <Stamp label="Expired" variant="crimson" rotate={-6} />
+            )}
             {listing.status === 'reserved' && <Stamp label="Reserved" variant="gold" rotate={-6} />}
           </div>
           <h1
