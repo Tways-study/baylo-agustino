@@ -31,8 +31,10 @@ export function Ribbon({ children, className = '', style, end }: RibbonProps) {
           style={{
             position: 'absolute',
             right: '1.25rem',
-            top: '50%',
-            transform: 'translateY(-50%)',
+            top: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
           }}
         >
           {end}
