@@ -27,6 +27,13 @@ export default function LoginPage() {
   // admin-side link generation to pair with a PKCE exchange. The normal
   // OTP email/code flow never produces a hash, so this is a no-op for it.
   useEffect(() => {
+    // E2E-only pickup path (see e2e/helpers/auth.ts) — the real OTP
+    // email/code flow never produces a hash. Dead in production: this
+    // check is a static `process.env.NODE_ENV` comparison, which Next.js
+    // inlines at build time and dead-code-eliminates from the production
+    // bundle, so it never ships as live attack surface on a real deploy.
+    if (process.env.NODE_ENV === 'production') return
+
     const hash = window.location.hash
     if (!hash) return
 

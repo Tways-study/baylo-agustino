@@ -13,6 +13,10 @@ export async function signInAsFixtureUser(page: Page, email: string) {
     process.env['NEXT_PUBLIC_SUPABASE_URL']!,
     process.env['SUPABASE_SERVICE_ROLE_KEY']!,
   )
+  // Mirror playwright.config.ts's own baseURL derivation so this helper
+  // targets wherever Playwright is actually pointed (CI, a different port,
+  // a staging preview) instead of always assuming localhost:3000.
+  const baseURL = process.env['PLAYWRIGHT_BASE_URL'] ?? 'http://localhost:3000'
   const { data, error } = await admin.auth.admin.generateLink({
     type: 'magiclink',
     email,
@@ -23,7 +27,7 @@ export async function signInAsFixtureUser(page: Page, email: string) {
     // it into a real session; redirecting to '/' would hit middleware's
     // unauthenticated redirect first and lose the fragment before any
     // client code runs.
-    options: { redirectTo: 'http://localhost:3000/login' },
+    options: { redirectTo: `${baseURL}/login` },
   })
   if (error || !data) {
     throw new Error(`Could not mint a session for ${email}: ${error?.message}`)
