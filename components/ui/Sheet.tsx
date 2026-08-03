@@ -1,6 +1,8 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { CSSProperties, ReactNode } from 'react'
 
 interface SheetProps {
@@ -13,7 +15,12 @@ interface SheetProps {
 }
 
 export function Sheet({ open, onClose, children, title, className = '', style }: SheetProps) {
-  return (
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const content = (
     <AnimatePresence>
       {open && (
         <>
@@ -95,4 +102,7 @@ export function Sheet({ open, onClose, children, title, className = '', style }:
       )}
     </AnimatePresence>
   )
+
+  if (!mounted) return null
+  return createPortal(content, document.body)
 }
