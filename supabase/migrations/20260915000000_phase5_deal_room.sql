@@ -173,6 +173,9 @@ begin
   if not exists (select 1 from public.meetup_spots where id = p_spot_id and active) then
     raise exception 'Pick a listed meetup spot.';
   end if;
+  if p_scheduled_at <= now() then
+    raise exception 'Pick a time in the future.';
+  end if;
 
   v_is_owner := v_caller = v_owner_id;
 
