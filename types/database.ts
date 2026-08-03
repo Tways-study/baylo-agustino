@@ -350,6 +350,108 @@ export interface Database {
           referencedColumns: string[]
         }>
       }
+      meetups: {
+        Row: {
+          offer_id: string
+          spot_id: number
+          scheduled_at: string
+          proposed_by: string
+          confirmed_by_offerer: boolean
+          confirmed_by_owner: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          offer_id: string
+          spot_id: number
+          scheduled_at: string
+          proposed_by: string
+          confirmed_by_offerer?: boolean
+          confirmed_by_owner?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Record<string, never>
+        Relationships: Array<{
+          foreignKeyName: string
+          columns: string[]
+          isOneToOne?: boolean
+          referencedRelation: string
+          referencedColumns: string[]
+        }>
+      }
+      messages: {
+        Row: {
+          id: string
+          offer_id: string
+          sender_id: string
+          body: string
+          created_at: string
+          read_at: string | null
+        }
+        Insert: {
+          id?: string
+          offer_id: string
+          sender_id: string
+          body: string
+          created_at?: string
+          read_at?: string | null
+        }
+        Update: Record<string, never>
+        Relationships: Array<{
+          foreignKeyName: string
+          columns: string[]
+          isOneToOne?: boolean
+          referencedRelation: string
+          referencedColumns: string[]
+        }>
+      }
+      deal_confirmations: {
+        Row: {
+          offer_id: string
+          user_id: string
+          confirmed_at: string
+        }
+        Insert: {
+          offer_id: string
+          user_id: string
+          confirmed_at?: string
+        }
+        Update: Record<string, never>
+        Relationships: Array<{
+          foreignKeyName: string
+          columns: string[]
+          isOneToOne?: boolean
+          referencedRelation: string
+          referencedColumns: string[]
+        }>
+      }
+      offer_cancellations: {
+        Row: {
+          offer_id: string
+          cancelled_by: string
+          reason_code: string
+          reason_text: string | null
+          was_late: boolean
+          created_at: string
+        }
+        Insert: {
+          offer_id: string
+          cancelled_by: string
+          reason_code: string
+          reason_text?: string | null
+          was_late: boolean
+          created_at?: string
+        }
+        Update: Record<string, never>
+        Relationships: Array<{
+          foreignKeyName: string
+          columns: string[]
+          isOneToOne?: boolean
+          referencedRelation: string
+          referencedColumns: string[]
+        }>
+      }
     }
     Views: Record<string, never>
     Functions: {
@@ -450,6 +552,34 @@ export interface Database {
         Args: { p_offer_id: string }
         Returns: Database['public']['Tables']['offers']['Row'][]
       }
+      propose_meetup: {
+        Args: {
+          p_offer_id: string
+          p_spot_id: number
+          p_scheduled_at: string
+        }
+        Returns: undefined
+      }
+      confirm_meetup: {
+        Args: {
+          p_offer_id: string
+        }
+        Returns: undefined
+      }
+      mark_swapped: {
+        Args: {
+          p_offer_id: string
+        }
+        Returns: undefined
+      }
+      cancel_deal: {
+        Args: {
+          p_offer_id: string
+          p_reason_code: string
+          p_reason_text: string | null
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       listing_intent: ListingIntent
@@ -462,7 +592,14 @@ export interface Database {
 export type ListingIntent = 'swap' | 'sale' | 'give'
 export type ListingStatus = 'draft' | 'active' | 'reserved' | 'completed' | 'archived' | 'removed'
 export type OfferStatus =
-  'pending' | 'accepted' | 'declined' | 'countered' | 'withdrawn' | 'expired' | 'cancelled'
+  | 'pending'
+  | 'accepted'
+  | 'declined'
+  | 'countered'
+  | 'withdrawn'
+  | 'expired'
+  | 'cancelled'
+  | 'completed'
 export type CashDirection = 'from_offerer' | 'to_offerer'
 export type NotificationKind =
   | 'offer_received'
@@ -471,6 +608,9 @@ export type NotificationKind =
   | 'offer_declined'
   | 'offer_withdrawn'
   | 'offer_expired'
+  | 'meetup_proposed'
+  | 'deal_completed'
+  | 'deal_cancelled'
 
 export type ProfileRow = Database['public']['Tables']['profiles']['Row']
 export type ProfileInsert = Database['public']['Tables']['profiles']['Insert']
@@ -482,3 +622,7 @@ export type ListingWantRow = Database['public']['Tables']['listing_wants']['Row'
 export type OfferRow = Database['public']['Tables']['offers']['Row']
 export type OfferItemRow = Database['public']['Tables']['offer_items']['Row']
 export type NotificationRow = Database['public']['Tables']['notifications']['Row']
+export type MeetupRow = Database['public']['Tables']['meetups']['Row']
+export type MessageRow = Database['public']['Tables']['messages']['Row']
+export type DealConfirmationRow = Database['public']['Tables']['deal_confirmations']['Row']
+export type OfferCancellationRow = Database['public']['Tables']['offer_cancellations']['Row']
