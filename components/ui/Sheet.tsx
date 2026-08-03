@@ -1,7 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { CSSProperties, ReactNode } from 'react'
 
@@ -14,9 +14,15 @@ interface SheetProps {
   style?: CSSProperties
 }
 
+// useLayoutEffect fires synchronously before the browser paints, so `mounted`
+// flips to true before anything is shown to the user. On the server it falls
+// back to useEffect, which is a no-op during SSR — this avoids React's
+// "useLayoutEffect does nothing on the server" warning.
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect
+
 export function Sheet({ open, onClose, children, title, className = '', style }: SheetProps) {
   const [mounted, setMounted] = useState(false)
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     setMounted(true)
   }, [])
 
