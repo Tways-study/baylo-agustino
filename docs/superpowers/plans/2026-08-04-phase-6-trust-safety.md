@@ -91,27 +91,6 @@
 -- anon revoke) has shipped live in this codebase twice already (Phase 4,
 -- then Phase 5's own new RPCs), so it is not being risked a third time.
 
--- ═══ is_admin — SECURITY DEFINER so it can see user_roles regardless of
--- the caller's own RLS visibility (mirrors is_blocked_by's precedent:
--- a raw `exists (select ... from user_roles ...)` inside another table's
--- policy would itself be subject to user_roles' restrictive RLS and
--- silently evaluate false for non-admins) ═══
-create or replace function public.is_admin(p_user_id uuid)
-returns boolean
-language sql
-stable
-security definer
-set search_path = ''
-as $$
-  select exists (
-    select 1 from public.user_roles
-    where user_id = p_user_id and role = 'admin'
-  )
-$$;
-grant execute on function public.is_admin(uuid) to authenticated;
-revoke execute on function public.is_admin(uuid) from public;
-revoke execute on function public.is_admin(uuid) from anon;
-
 -- ═══ reviews ═══
 create table public.reviews (
   id uuid primary key default gen_random_uuid(),
@@ -145,6 +124,30 @@ create table public.user_roles (
 );
 alter table public.user_roles enable row level security;
 revoke insert, update, delete on public.user_roles from authenticated;
+
+-- ═══ is_admin — SECURITY DEFINER so it can see user_roles regardless of
+-- the caller's own RLS visibility (mirrors is_blocked_by's precedent:
+-- a raw `exists (select ... from user_roles ...)` inside another table's
+-- policy would itself be subject to user_roles' restrictive RLS and
+-- silently evaluate false for non-admins). Must be created after
+-- user_roles: language sql functions are parsed against the catalog at
+-- CREATE FUNCTION time (unlike plpgsql), so the referenced table must
+-- already exist. ═══
+create or replace function public.is_admin(p_user_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.user_roles
+    where user_id = p_user_id and role = 'admin'
+  )
+$$;
+grant execute on function public.is_admin(uuid) to authenticated;
+revoke execute on function public.is_admin(uuid) from public;
+revoke execute on function public.is_admin(uuid) from anon;
 
 create policy "admins can see role assignments"
   on public.user_roles for select

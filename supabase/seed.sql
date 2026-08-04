@@ -96,3 +96,9 @@ insert into auth.users (
 
 insert into public.profiles (id, display_name, program, year_level, verified_at)
 values ('55555555-5555-5555-5555-555555555555', 'E2E Fixture 3', 'BSBA', 1, now());
+
+-- ═══ e2e-fixture-3 gets admin — Phase 6 admin-moderation E2E tests act as
+-- this user rather than seeding a fourth account. Not used as a
+-- moderation target in those specs, so this doesn't create a conflict. ═══
+insert into public.user_roles (user_id, role)
+values ('55555555-5555-5555-5555-555555555555', 'admin');
