@@ -1,7 +1,78 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # Baylo Agustino — CLAUDE.md
 
 Campus-only trading PWA for University of San Agustin, Iloilo City.
 Owner: TWICECODED · Stack: Next.js 15, React 19, TypeScript strict, Tailwind v4, Supabase
+
+## Commands
+
+```bash
+npm run dev          # Turbopack dev server (localhost:3000)
+npm run build        # Production build
+npm run lint         # ESLint (next lint)
+npm run type-check   # tsc --noEmit, no emit
+npm run test         # Vitest unit tests (all *.test.ts outside e2e/)
+npm run test:e2e     # Playwright E2E against running dev server
+```
+
+Run a single unit test file:
+
+```bash
+npx vitest run lib/offers/state-machine.test.ts
+```
+
+E2E tests run against `http://localhost:3000` by default; override with `PLAYWRIGHT_BASE_URL`. The `webServer` config auto-starts `npm run dev` unless an existing server is detected (`reuseExistingServer: !CI`). E2E tests run serially (`fullyParallel: false`) — listing creation touches shared rate-limit state.
+
+---
+
+## Architecture
+
+### Route groups
+
+| Group    | Path                                        | Purpose                                  |
+| -------- | ------------------------------------------- | ---------------------------------------- |
+| `(auth)` | `/login`, `/onboarding`, `/suspended`       | Unauthenticated / gate screens           |
+| `(app)`  | `/`, `/post`, `/l/[code]`, `/deals`, `/ako` | Authenticated app shell with `BottomNav` |
+| `(dev)`  | `/dev`                                      | Local design-system sandbox only         |
+
+### Middleware (`middleware.ts`)
+
+All requests (excluding `_next/`, `favicon.ico`, `manifest.json`, `sw.js`, `icons/`) pass through the middleware. It enforces the session → profile state machine:
+
+1. No session → `/login`
+2. Has session + on `/login` → check profile; if onboarded redirect to `/`
+3. Has session + protected route → if no profile or `verified_at` is null → `/onboarding`; if `is_suspended` → `/suspended`
+
+### `lib/` domain structure
+
+Each domain folder owns its Zod schemas, server actions, DB queries, and utility functions. Schemas are the single source of truth — inferred types flow to both form and action.
+
+- `lib/auth/` — OTP send/verify/onboarding actions, `getAuthUser()`, `house-rules.ts`
+- `lib/listings/` — CRUD actions, banned-word filter, formatting helpers
+- `lib/offers/` — Pure state-machine (`canTransition`), balance-beam logic, server actions
+- `lib/deals/` — Deal-room stepper, real-time subscription helpers, ICS export
+- `lib/discovery/` — Search, filter, format helpers
+- `lib/media/` — Client-side EXIF-stripped image compression (via `browser-image-compression`), public URL helper
+- `lib/supabase/server.ts` — Cookie-based `SupabaseClient<Database>` for Server Components / Server Actions (guarded by `import "server-only"`)
+- `lib/supabase/client.ts` — Browser `SupabaseClient<Database>` for Client Components
+
+### Supabase client pattern
+
+Always use `lib/supabase/server.ts` in Server Actions and Server Components; `lib/supabase/client.ts` in `'use client'` components. The server client is `async`; the browser client is synchronous.
+
+### Testing
+
+- **Unit tests** (`*.test.ts`, Vitest, `environment: node`): pure logic only — state machines, balance calculations, format/search helpers. No DOM, no Supabase calls. Live colocated with the module they test.
+- **E2E tests** (`e2e/*.spec.ts`, Playwright, `Pixel 5` viewport): full browser flows against the real dev server and real Supabase. Use `signInAsFixtureUser()` from `e2e/helpers/auth.ts` (mints a magic link via service-role admin API, navigates the real browser through it — never hand-craft cookies).
+
+### `components/ui/`
+
+Shared primitive components: `Button`, `Chit`, `ChitSkeleton`, `BottomNav`, `Ribbon`, `Stamp`, `BalanceBeam`, `Sheet`, `Panel`, `Chip`, `IntentTag`, `EmptyState`, `MiniListingRow`, `OfferRow`, `NotificationBell`. Import from `@/components/ui` (barrel `index.ts`).
+
+---
 
 **Read `/baylo-agustino-mockup.html` before writing any UI. It is the visual contract, not a suggestion.**
 When the mockup file is not yet present, the tokens and direction below are the authoritative source.
