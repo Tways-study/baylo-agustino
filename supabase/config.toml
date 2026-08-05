@@ -233,6 +233,18 @@ otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
 otp_expiry = 3600
 
+# Show the plain 6-digit code in the email instead of Supabase's default
+# link-only template, matching the code-entry UI on /login. Both templates
+# are needed: signInWithOtp(shouldCreateUser: true) sends "confirmation" for
+# first-time signups and "magic_link" for returning users.
+[auth.email.template.confirmation]
+subject = "Your Baylo Agustino code"
+content_path = "./supabase/templates/otp_code.html"
+
+[auth.email.template.magic_link]
+subject = "Your Baylo Agustino code"
+content_path = "./supabase/templates/otp_code.html"
+
 # Use a production-ready SMTP server
 # [auth.email.smtp]
 # enabled = true

@@ -1,7 +1,7 @@
 {
   "name": "Baylo Agustino",
   "short_name": "Baylo",
-  "description": "Campus trading floor for Agustinians. Swap, sell, or give — sa sulod lang sang campus.",
+  "description": "Campus trading floor for Agustinians. Swap, sell, or give — on campus only.",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",

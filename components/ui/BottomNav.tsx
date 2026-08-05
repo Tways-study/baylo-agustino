@@ -11,7 +11,7 @@ interface NavItem {
   isPost?: boolean
 }
 
-function BaylohanIcon() {
+function FeedIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
       <rect x="2" y="4" width="16" height="12" rx="1" stroke="currentColor" strokeWidth="1.5" />
@@ -20,7 +20,7 @@ function BaylohanIcon() {
   )
 }
 
-function HanapIcon() {
+function BrowseIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
       <circle cx="9" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.5" />
@@ -51,7 +51,7 @@ function DealsIcon() {
   )
 }
 
-function AkoIcon() {
+function ProfileIcon() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
       <circle cx="10" cy="7" r="3.5" stroke="currentColor" strokeWidth="1.5" />
@@ -74,11 +74,11 @@ export function BottomNav({ className = '', style }: BottomNavProps) {
   const pathname = usePathname()
 
   const navItems: NavItem[] = [
-    { href: '/', label: 'Baylohan', icon: <BaylohanIcon /> },
-    { href: '/hanap', label: 'Hanap', icon: <HanapIcon /> },
+    { href: '/', label: 'Feed', icon: <FeedIcon /> },
+    { href: '/browse', label: 'Browse', icon: <BrowseIcon /> },
     { href: '/post', label: 'Post', icon: <PostIcon />, isPost: true },
     { href: '/deals', label: 'Deals', icon: <DealsIcon /> },
-    { href: '/ako', label: 'Ako', icon: <AkoIcon /> },
+    { href: '/profile', label: 'Profile', icon: <ProfileIcon /> },
   ]
 
   return (

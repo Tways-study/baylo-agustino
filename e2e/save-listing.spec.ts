@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { signInAsFixtureUser } from './helpers/auth'
 import { createFixtureListing } from './helpers/fixtures'
 
-test('saving a listing shows it in Bantayan', async ({ page }) => {
+test('saving a listing shows it in Saved', async ({ page }) => {
   const title = 'Save toggle test item'
   await createFixtureListing({ title })
   await signInAsFixtureUser(page, 'e2e-fixture@usa.edu.ph')
@@ -35,9 +35,9 @@ test('saving a listing shows it in Bantayan', async ({ page }) => {
     saveButton.click(),
   ])
 
-  // /ako is a Server Component that fetches saved listings once at
+  // /profile is a Server Component that fetches saved listings once at
   // request time, so this navigation must happen after the write above
   // is confirmed complete, not just after the click event fires.
-  await page.goto('/ako')
+  await page.goto('/profile')
   await expect(page.getByText(title)).toBeVisible()
 })

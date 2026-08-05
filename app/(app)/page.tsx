@@ -8,11 +8,11 @@ import { SearchBar } from './SearchBar'
 import { FilterChips } from './FilterChips'
 import { FeedList } from './FeedList'
 
-interface BaylohanPageProps {
+interface FeedPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>
 }
 
-export default async function BaylohanPage({ searchParams }: BaylohanPageProps) {
+export default async function FeedPage({ searchParams }: FeedPageProps) {
   const rawParams = await searchParams
   const filters = parseFeedFilters(rawParams)
 
@@ -42,7 +42,7 @@ export default async function BaylohanPage({ searchParams }: BaylohanPageProps) 
   return (
     <>
       <header>
-        <Ribbon end={user && <NotificationBell notifications={notifications} />}>Baylohan</Ribbon>
+        <Ribbon end={user && <NotificationBell notifications={notifications} />}>Feed</Ribbon>
       </header>
       <main className="flex flex-col gap-3 px-4 py-4">
         <SearchBar initialQuery={filters.q ?? ''} recentSearches={recentSearches} />

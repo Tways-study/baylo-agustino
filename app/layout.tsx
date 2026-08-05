@@ -25,8 +25,7 @@ const ibmPlexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: 'Baylo Agustino',
-  description:
-    'Campus trading floor for Agustinians. Swap, sell, or give — sa sulod lang sang campus.',
+  description: 'Campus trading floor for Agustinians. Swap, sell, or give — on campus only.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,

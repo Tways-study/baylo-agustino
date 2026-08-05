@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 import { signInAsFixtureUser } from './helpers/auth'
 import { createFixtureListing } from './helpers/fixtures'
 
-test('Baylohan feed shows a chit within 2.5s on 3G', async ({ page, context, browserName }) => {
+test('Feed shows a chit within 2.5s on 3G', async ({ page, context, browserName }) => {
   test.skip(browserName !== 'chromium', 'CDP network emulation is Chromium-only')
 
   await createFixtureListing({ title: 'TTI fixture listing' })

@@ -32,11 +32,11 @@ E2E tests run against `http://localhost:3000` by default; override with `PLAYWRI
 
 ### Route groups
 
-| Group    | Path                                        | Purpose                                  |
-| -------- | ------------------------------------------- | ---------------------------------------- |
-| `(auth)` | `/login`, `/onboarding`, `/suspended`       | Unauthenticated / gate screens           |
-| `(app)`  | `/`, `/post`, `/l/[code]`, `/deals`, `/ako` | Authenticated app shell with `BottomNav` |
-| `(dev)`  | `/dev`                                      | Local design-system sandbox only         |
+| Group    | Path                                            | Purpose                                  |
+| -------- | ----------------------------------------------- | ---------------------------------------- |
+| `(auth)` | `/login`, `/onboarding`, `/suspended`           | Unauthenticated / gate screens           |
+| `(app)`  | `/`, `/post`, `/l/[code]`, `/deals`, `/profile` | Authenticated app shell with `BottomNav` |
+| `(dev)`  | `/dev`                                          | Local design-system sandbox only         |
 
 ### Middleware (`middleware.ts`)
 
@@ -138,7 +138,7 @@ CSS variables: `--font-display`, `--font-body`, `--font-mono`
 
 ### Voice
 
-Sentence case. Active verbs. Local register where natural — **Baylohan** (the feed), **Hanap** (wanted posts), **Ako** (profile). Hiligaynon/Taglish in sample content is welcome; never forced onto system messages. Errors state what happened and what to do. Empty screens are invitations: _"Nothing on the floor yet. Post the thing you're not using."_
+Sentence case. Active verbs. English only — no Hiligaynon, Taglish, or local-language terms in UI copy, labels, or sample content. Errors state what happened and what to do. Empty screens are invitations: _"Nothing on the floor yet. Post the thing you're not using."_
 
 ---
 

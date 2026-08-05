@@ -4,7 +4,7 @@ import { getSavedListings } from '@/lib/discovery/queries'
 import { getSignedImageUrls } from '@/lib/media/get-image-url'
 import { Ribbon, MiniListingRow, EmptyState } from '@/components/ui'
 
-export default async function AkoPage() {
+export default async function ProfilePage() {
   const user = await getAuthUser()
   if (!user) return null // middleware already guards this route; defensive only
 
@@ -21,7 +21,7 @@ export default async function AkoPage() {
   return (
     <>
       <header>
-        <Ribbon>Ako</Ribbon>
+        <Ribbon>Profile</Ribbon>
       </header>
       <main className="px-4 py-4">
         <p className="font-mono-utility text-[10px] mb-2" style={{ color: 'var(--ink-45)' }}>
@@ -48,7 +48,7 @@ export default async function AkoPage() {
         )}
 
         <p className="font-mono-utility text-[10px] mb-2 mt-6" style={{ color: 'var(--ink-45)' }}>
-          Bantayan
+          Saved
         </p>
         {savedListings.length === 0 ? (
           <EmptyState

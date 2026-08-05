@@ -82,8 +82,8 @@ export default function DevPage() {
 
       {/* ─── Ribbon ─── */}
       <Section title="Ribbon">
-        <Ribbon>Baylohan</Ribbon>
-        <Ribbon>Hanap — Wanted Posts</Ribbon>
+        <Ribbon>Feed</Ribbon>
+        <Ribbon>Browse — Wanted Posts</Ribbon>
       </Section>
 
       {/* ─── IntentTag ─── */}

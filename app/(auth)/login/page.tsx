@@ -105,7 +105,7 @@ export default function LoginPage() {
           }}
         >
           {stage === 'email'
-            ? 'Swap, sell, or give — sa sulod lang sang campus.'
+            ? 'Swap, sell, or give — on campus only.'
             : `Code sent to ${maskEmail(email)}`}
         </p>
       </div>
