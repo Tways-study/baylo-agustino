@@ -45,6 +45,9 @@ next-env.d.ts
 /supabase/.branches
 /supabase/.temp
 
+# mcp config (contains secrets)
+.mcp.json
+
 # superpowers subagent-driven-development scratch workspace
 /.superpowers/
 

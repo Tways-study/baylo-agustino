@@ -75,7 +75,7 @@ export function BottomNav({ className = '', style }: BottomNavProps) {
 
   const navItems: NavItem[] = [
     { href: '/', label: 'Feed', icon: <FeedIcon /> },
-    { href: '/browse', label: 'Browse', icon: <BrowseIcon /> },
+    { href: '/hanap', label: 'Hanap', icon: <BrowseIcon /> },
     { href: '/post', label: 'Post', icon: <PostIcon />, isPost: true },
     { href: '/deals', label: 'Deals', icon: <DealsIcon /> },
     { href: '/profile', label: 'Profile', icon: <ProfileIcon /> },

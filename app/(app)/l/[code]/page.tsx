@@ -5,9 +5,11 @@ import { getAuthUser } from '@/lib/auth/session'
 import { getSignedImageUrls } from '@/lib/media/get-image-url'
 import { createClient } from '@/lib/supabase/server'
 import { formatRelativeTime, centavosToPesos } from '@/lib/listings/format'
-import { Panel, IntentTag, Stamp, Button } from '@/components/ui'
+import { Panel, IntentTag, Stamp, Button, FollowButton } from '@/components/ui'
+import { isFollowing } from '@/lib/discovery/queries'
 import { HeroCarousel } from './HeroCarousel'
 import { OwnerActions } from './OwnerActions'
+import { ShareButton } from './ShareButton'
 
 export default async function ListingDetailPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params
@@ -16,6 +18,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
 
   const user = await getAuthUser()
   const isOwner = user?.id === listing.owner_id
+  const following = !isOwner && user ? await isFollowing(user.id, listing.owner_id) : false
 
   if (!isOwner) {
     const supabase = await createClient()
@@ -193,6 +196,11 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
                 Verified
               </p>
             )}
+            {!isOwner && user && (
+              <div style={{ marginTop: '0.625rem' }}>
+                <FollowButton followeeId={listing.owner_id} initiallyFollowing={following} />
+              </div>
+            )}
           </Panel>
         )}
 
@@ -254,6 +262,7 @@ export default async function ListingDetailPage({ params }: { params: Promise<{ 
           <OwnerActions code={listing.code} listingId={listing.id} bumpedAt={listing.bumped_at} />
         ) : (
           <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <ShareButton code={listing.code} title={listing.title} />
             <Button
               type="button"
               variant="ghost"

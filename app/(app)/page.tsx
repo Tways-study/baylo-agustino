@@ -3,10 +3,13 @@ import { getCategories } from '@/lib/listings/queries'
 import { getFeedListings, getSavedListingIds, getRecentSearches } from '@/lib/discovery/queries'
 import { getUnreadNotifications } from '@/lib/offers/queries'
 import { parseFeedFilters } from '@/lib/discovery/schemas'
+import { getFollowingFeedListings, getPulseStats } from '@/lib/discovery/queries'
 import { getAuthUser } from '@/lib/auth/session'
 import { SearchBar } from './SearchBar'
 import { FilterChips } from './FilterChips'
 import { FeedList } from './FeedList'
+import { PulseStrip } from './PulseStrip'
+import { FollowingSection } from './FollowingSection'
 
 interface FeedPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>
@@ -17,11 +20,20 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
   const filters = parseFeedFilters(rawParams)
 
   const [categories, user] = await Promise.all([getCategories(), getAuthUser()])
-  const [{ listings, nextCursor }, savedIds, recentSearches, notifications] = await Promise.all([
+  const [
+    { listings, nextCursor },
+    savedIds,
+    recentSearches,
+    notifications,
+    followingListings,
+    pulseStats,
+  ] = await Promise.all([
     getFeedListings(filters, categories),
     user ? getSavedListingIds(user.id) : Promise.resolve(new Set<string>()),
     user ? getRecentSearches(user.id) : Promise.resolve([]),
     user ? getUnreadNotifications(user.id) : Promise.resolve([]),
+    user ? getFollowingFeedListings(user.id) : Promise.resolve([]),
+    getPulseStats(),
   ])
 
   const hasActiveFilters = Boolean(
@@ -45,6 +57,7 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
         <Ribbon end={user && <NotificationBell notifications={notifications} />}>Feed</Ribbon>
       </header>
       <main className="flex flex-col gap-3 px-4 py-4">
+        {pulseStats && <PulseStrip stats={pulseStats} />}
         <SearchBar initialQuery={filters.q ?? ''} recentSearches={recentSearches} />
         <FilterChips
           activeIntent={filters.intent ?? null}
@@ -55,6 +68,8 @@ export default async function FeedPage({ searchParams }: FeedPageProps) {
           initialPrice={filters.price ?? null}
           initialPhotos={filters.photos === '1'}
         />
+
+        <FollowingSection listings={followingListings} />
 
         {listings.length === 0 ? (
           hasActiveFilters ? (

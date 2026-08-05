@@ -328,7 +328,10 @@ export interface Database {
         Row: {
           id: string
           user_id: string
-          offer_id: string
+          offer_id: string | null
+          listing_id: string | null
+          want_id: string | null
+          reason: string | null
           kind: NotificationKind
           read_at: string | null
           created_at: string
@@ -336,7 +339,10 @@ export interface Database {
         Insert: {
           id?: string
           user_id: string
-          offer_id: string
+          offer_id?: string | null
+          listing_id?: string | null
+          want_id?: string | null
+          reason?: string | null
           kind: NotificationKind
           read_at?: string | null
           created_at?: string
@@ -611,6 +617,9 @@ export type NotificationKind =
   | 'meetup_proposed'
   | 'deal_completed'
   | 'deal_cancelled'
+  | 'listing_removed'
+  | 'account_suspended'
+  | 'hanap_match'
 
 export type ProfileRow = Database['public']['Tables']['profiles']['Row']
 export type ProfileInsert = Database['public']['Tables']['profiles']['Insert']
@@ -626,3 +635,26 @@ export type MeetupRow = Database['public']['Tables']['meetups']['Row']
 export type MessageRow = Database['public']['Tables']['messages']['Row']
 export type DealConfirmationRow = Database['public']['Tables']['deal_confirmations']['Row']
 export type OfferCancellationRow = Database['public']['Tables']['offer_cancellations']['Row']
+
+export interface WantRow {
+  id: string
+  user_id: string
+  title: string
+  details: string | null
+  budget_centavos: number | null
+  offering: string | null
+  status: 'open' | 'closed'
+  created_at: string
+}
+
+export interface FollowRow {
+  follower_id: string
+  followee_id: string
+  created_at: string
+}
+
+export interface PulseStatsRow {
+  swaps_this_week: number
+  top_wanted: string | null
+  most_active_program: string | null
+}

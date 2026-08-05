@@ -3,7 +3,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { sendOtpSchema, verifyOtpSchema, onboardingSchema } from '@/lib/auth/schemas'
-import { POLICY_VERSION } from '@/lib/auth/house-rules'
 
 export async function sendOtp(
   _prev: { error?: string } | null,
@@ -104,7 +103,6 @@ export async function completeOnboarding(
     p_program: result.data.program ?? null,
     p_year_level: result.data.yearLevel ?? null,
     p_avatar_url: result.data.avatarUrl ?? null,
-    p_policy_version: POLICY_VERSION,
   })
 
   if (profileError) {

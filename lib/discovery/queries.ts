@@ -5,7 +5,7 @@ import type { FeedFilters } from './schemas'
 import { priceBandToRange } from './format'
 import { buildPrefixTsQuery } from './search'
 import type { FeedListing, MyListing } from '@/lib/listings/queries'
-import type { CategoryRow } from '@/types/database'
+import type { CategoryRow, PulseStatsRow } from '@/types/database'
 
 export interface FeedCursor {
   bumpedAt: string
@@ -194,6 +194,38 @@ export async function getSavedListings(userId: string): Promise<MyListing[]> {
 
   const rows = (data ?? []) as unknown as Array<{ listings: MyListing | null }>
   return rows.map((r) => r.listings).filter((l): l is MyListing => l !== null)
+}
+
+export async function getFollowingFeedListings(userId: string): Promise<FeedListingWithImage[]> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('listings')
+    .select(FEED_SELECT + ', follows!inner(follower_id)')
+    .eq('status', 'active')
+    .gt('expires_at', new Date().toISOString())
+    .eq('follows.follower_id', userId)
+    .order('bumped_at', { ascending: false })
+    .limit(10)
+
+  const rows = (data ?? []) as unknown as FeedListing[]
+  return attachImageUrls(rows)
+}
+
+export async function isFollowing(followerId: string, followeeId: string): Promise<boolean> {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('follows')
+    .select('follower_id')
+    .eq('follower_id', followerId)
+    .eq('followee_id', followeeId)
+    .maybeSingle()
+  return data !== null
+}
+
+export async function getPulseStats(): Promise<PulseStatsRow | null> {
+  const supabase = await createClient()
+  const { data } = await supabase.from('pulse_stats').select('*').maybeSingle()
+  return (data as PulseStatsRow | null) ?? null
 }
 
 export async function getRecentSearches(userId: string): Promise<string[]> {

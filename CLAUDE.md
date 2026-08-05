@@ -26,6 +26,23 @@ npx vitest run lib/offers/state-machine.test.ts
 
 E2E tests run against `http://localhost:3000` by default; override with `PLAYWRIGHT_BASE_URL`. The `webServer` config auto-starts `npm run dev` unless an existing server is detected (`reuseExistingServer: !CI`). E2E tests run serially (`fullyParallel: false`) — listing creation touches shared rate-limit state.
 
+### Supabase local dev
+
+```bash
+supabase start          # start local stack (Postgres + Auth + Studio on :54323)
+supabase stop           # stop it
+supabase db reset       # wipe and re-run all migrations + seed.sql
+supabase migration new <name>   # create a new timestamped migration file (always use this — never hand-name)
+```
+
+Run pgTAP RLS tests:
+
+```bash
+supabase test db
+```
+
+pgTAP test files live in `supabase/tests/`. Each phase has its own file (`phase1_rls.sql`, `phase2_listings_rls.sql`, …). A migration without a corresponding pgTAP test is not considered done.
+
 ---
 
 ## Architecture
@@ -67,10 +84,32 @@ Always use `lib/supabase/server.ts` in Server Actions and Server Components; `li
 
 - **Unit tests** (`*.test.ts`, Vitest, `environment: node`): pure logic only — state machines, balance calculations, format/search helpers. No DOM, no Supabase calls. Live colocated with the module they test.
 - **E2E tests** (`e2e/*.spec.ts`, Playwright, `Pixel 5` viewport): full browser flows against the real dev server and real Supabase. Use `signInAsFixtureUser()` from `e2e/helpers/auth.ts` (mints a magic link via service-role admin API, navigates the real browser through it — never hand-craft cookies).
+- **pgTAP** (`supabase/tests/*.sql`): RLS policy tests, one file per phase. Run with `supabase test db`. Requires a running local stack.
+
+**Fixture users** (seeded by `supabase/seed.sql`, recreated on `supabase db reset`):
+
+| Email                    | UUID          | Purpose                            |
+| ------------------------ | ------------- | ---------------------------------- |
+| `seed-owner@usa.edu.ph`  | `1111...1111` | pgTAP FK anchor for listings tests |
+| `e2e-fixture@usa.edu.ph` | `2222...2222` | Playwright sign-in via magic link  |
 
 ### `components/ui/`
 
 Shared primitive components: `Button`, `Chit`, `ChitSkeleton`, `BottomNav`, `Ribbon`, `Stamp`, `BalanceBeam`, `Sheet`, `Panel`, `Chip`, `IntentTag`, `EmptyState`, `MiniListingRow`, `OfferRow`, `NotificationBell`. Import from `@/components/ui` (barrel `index.ts`).
+
+### Environment variables (`.env.local`)
+
+| Variable                        | Used by                                 |
+| ------------------------------- | --------------------------------------- |
+| `NEXT_PUBLIC_SUPABASE_URL`      | App + E2E                               |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | App + E2E                               |
+| `SUPABASE_SERVICE_ROLE_KEY`     | E2E auth helper (server only)           |
+| `NEXT_PUBLIC_APP_URL`           | App                                     |
+| `ALLOWED_EMAIL_DOMAIN`          | Auth validation (default: `usa.edu.ph`) |
+| `GMAIL_SMTP_USER`               | Supabase Auth email (production)        |
+| `GMAIL_APP_PASSWORD`            | Supabase Auth email (production)        |
+
+`GMAIL_SMTP_USER` / `GMAIL_APP_PASSWORD` are referenced by `supabase/config.toml` `[auth.email.smtp]` via `env(...)`. They have no effect in local dev (local SMTP intercepts all mail).
 
 ---
 
@@ -184,9 +223,10 @@ Implement one phase at a time. Do not start Phase N+1 until Phase N acceptance c
 - **Phase 2** — Listings
 - **Phase 3** — Discovery
 - **Phase 4** — Offer engine ★ (highest risk, budget accordingly)
-- **Phase 5** — Deal room (current)
-- **Phase 6** — Trust & safety
-- **Phase 7** — Social layer
+- **Phase 5** — Deal room ✓
+- **Phase 6** — Trust & safety ✓
+- **Phase 7** — Social layer (current)
+
 - **Phase 8** — Hardening & launch
 
 Full spec: `baylo-agustino-build-spec.md`

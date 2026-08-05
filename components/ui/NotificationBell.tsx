@@ -19,6 +19,9 @@ const KIND_COPY: Record<NotificationRow['kind'], string> = {
   meetup_proposed: 'proposed a meetup time',
   deal_completed: 'the deal is complete',
   deal_cancelled: 'cancelled the deal',
+  listing_removed: 'your listing was removed',
+  account_suspended: 'your account has been suspended',
+  hanap_match: 'a new listing matches your Hanap',
 }
 
 export function NotificationBell({ notifications }: NotificationBellProps) {
@@ -28,11 +31,17 @@ export function NotificationBell({ notifications }: NotificationBellProps) {
 
   const visible = notifications.filter((n) => !dismissed.includes(n.id))
 
+  function notificationHref(n: NotificationRow): string {
+    if (n.kind === 'hanap_match') return '/'
+    if (n.offer_id) return `/deals/${n.offer_id}`
+    return '/'
+  }
+
   function handleSelect(notification: NotificationRow) {
     setDismissed((prev) => [...prev, notification.id])
     setOpen(false)
     void markNotificationRead(notification.id)
-    router.push(`/deals/${notification.offer_id}`)
+    router.push(notificationHref(notification))
   }
 
   return (
