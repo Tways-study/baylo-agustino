@@ -586,6 +586,31 @@ export interface Database {
         }
         Returns: undefined
       }
+      follow_user: {
+        Args: { p_followee_id: string }
+        Returns: undefined
+      }
+      unfollow_user: {
+        Args: { p_followee_id: string }
+        Returns: undefined
+      }
+      post_want: {
+        Args: {
+          p_title: string
+          p_details: string | null
+          p_budget_centavos: number | null
+          p_offering: string | null
+        }
+        Returns: undefined
+      }
+      close_want: {
+        Args: { p_want_id: string }
+        Returns: undefined
+      }
+      user_is_registered: {
+        Args: { p_email: string }
+        Returns: boolean
+      }
     }
     Enums: {
       listing_intent: ListingIntent

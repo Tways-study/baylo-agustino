@@ -26,6 +26,10 @@ npx vitest run lib/offers/state-machine.test.ts
 
 E2E tests run against `http://localhost:3000` by default; override with `PLAYWRIGHT_BASE_URL`. The `webServer` config auto-starts `npm run dev` unless an existing server is detected (`reuseExistingServer: !CI`). E2E tests run serially (`fullyParallel: false`) — listing creation touches shared rate-limit state.
 
+### Pre-commit hook
+
+Husky runs lint-staged on every commit: ESLint (`--max-warnings 0`) + Prettier on staged `.ts`/`.tsx` files, Prettier on `.js`, `.mjs`, `.json`, `.css`, `.md`. A commit will fail if ESLint reports any warning. Fix the lint error — never use `--no-verify`.
+
 ### Supabase local dev
 
 ```bash
@@ -49,11 +53,11 @@ pgTAP test files live in `supabase/tests/`. Each phase has its own file (`phase1
 
 ### Route groups
 
-| Group    | Path                                            | Purpose                                  |
-| -------- | ----------------------------------------------- | ---------------------------------------- |
-| `(auth)` | `/login`, `/onboarding`, `/suspended`           | Unauthenticated / gate screens           |
-| `(app)`  | `/`, `/post`, `/l/[code]`, `/deals`, `/profile` | Authenticated app shell with `BottomNav` |
-| `(dev)`  | `/dev`                                          | Local design-system sandbox only         |
+| Group    | Path                                                                                                | Purpose                                  |
+| -------- | --------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `(auth)` | `/login`, `/onboarding`, `/suspended`                                                               | Unauthenticated / gate screens           |
+| `(app)`  | `/`, `/post`, `/hanap`, `/l/[code]`, `/l/[code]/edit`, `/l/[code]/offer`, `/deals/[id]`, `/profile` | Authenticated app shell with `BottomNav` |
+| `(dev)`  | `/dev`                                                                                              | Local design-system sandbox only         |
 
 ### Middleware (`middleware.ts`)
 
@@ -73,8 +77,16 @@ Each domain folder owns its Zod schemas, server actions, DB queries, and utility
 - `lib/deals/` — Deal-room stepper, real-time subscription helpers, ICS export
 - `lib/discovery/` — Search, filter, format helpers
 - `lib/media/` — Client-side EXIF-stripped image compression (via `browser-image-compression`), public URL helper
+- `lib/social/` — Follow/unfollow actions, follower counts (Phase 7)
+- `lib/wants/` — Hanap board: open wants CRUD actions and queries (Phase 7)
 - `lib/supabase/server.ts` — Cookie-based `SupabaseClient<Database>` for Server Components / Server Actions (guarded by `import "server-only"`)
 - `lib/supabase/client.ts` — Browser `SupabaseClient<Database>` for Client Components
+
+Generated Supabase TypeScript types live in `types/database.ts`. Regenerate with `supabase gen types typescript --local > types/database.ts` after schema changes.
+
+### API routes
+
+- `app/api/og/[code]/route.tsx` — generates Open Graph images for listing share cards (used by the share-to-story flow in Phase 7).
 
 ### Supabase client pattern
 
@@ -95,7 +107,7 @@ Always use `lib/supabase/server.ts` in Server Actions and Server Components; `li
 
 ### `components/ui/`
 
-Shared primitive components: `Button`, `Chit`, `ChitSkeleton`, `BottomNav`, `Ribbon`, `Stamp`, `BalanceBeam`, `Sheet`, `Panel`, `Chip`, `IntentTag`, `EmptyState`, `MiniListingRow`, `OfferRow`, `NotificationBell`. Import from `@/components/ui` (barrel `index.ts`).
+Shared primitive components: `Button`, `Chit`, `ChitSkeleton`, `BottomNav`, `Ribbon`, `Stamp`, `BalanceBeam`, `Sheet`, `Panel`, `Chip`, `IntentTag`, `EmptyState`, `MiniListingRow`, `OfferRow`, `NotificationBell`, `FollowButton`. Import from `@/components/ui` (barrel `index.ts`).
 
 ### Environment variables (`.env.local`)
 

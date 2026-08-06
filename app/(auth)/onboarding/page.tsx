@@ -7,7 +7,7 @@ import { HOUSE_RULES_V1 } from '@/lib/auth/house-rules'
 import { Button } from '@/components/ui'
 import { createClient } from '@/lib/supabase/client'
 
-const TOTAL_STEPS = 5
+const TOTAL_STEPS = 6
 
 function StepDots({ current }: { current: number }) {
   return (
@@ -80,10 +80,13 @@ export default function OnboardingPage() {
   const [yearLevel, setYearLevel] = useState<number | null>(null)
   const [avatarUrl, setAvatarUrl] = useState('')
   const [avatarPreview, setAvatarPreview] = useState('')
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [isUploading, setIsUploading] = useState(false)
   const [uploadError, setUploadError] = useState('')
   const [rulesAccepted, setRulesAccepted] = useState(false)
   const [nameError, setNameError] = useState('')
+  const [passwordError, setPasswordError] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [submitState, submitAction, isSubmitting] = useActionState(completeOnboarding, null)
@@ -148,6 +151,17 @@ export default function OnboardingPage() {
       }
       setNameError('')
     }
+    if (step === 4) {
+      if (password.length < 8) {
+        setPasswordError('Password must be at least 8 characters.')
+        return
+      }
+      if (password !== confirmPassword) {
+        setPasswordError('Passwords do not match.')
+        return
+      }
+      setPasswordError('')
+    }
     setStep((s) => s + 1)
   }
 
@@ -196,6 +210,7 @@ export default function OnboardingPage() {
         <input type="hidden" name="program" value={program} />
         <input type="hidden" name="yearLevel" value={yearLevel ?? ''} />
         <input type="hidden" name="avatarUrl" value={avatarUrl} />
+        <input type="hidden" name="password" value={password} />
 
         {/* ─── Step 0: Display name ─── */}
         {step === 0 && (
@@ -428,8 +443,50 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* ─── Step 4: House rules ─── */}
+        {/* ─── Step 4: Password ─── */}
         {step === 4 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            <label htmlFor="pw-new" style={labelStyle}>
+              Create a password
+            </label>
+            <input
+              id="pw-new"
+              type="password"
+              autoFocus
+              autoComplete="new-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 8 characters"
+              style={inputStyle}
+            />
+            <input
+              id="pw-confirm"
+              type="password"
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm password"
+              style={{ ...inputStyle, marginTop: '0.25rem' }}
+            />
+            <p style={hintStyle}>You&rsquo;ll use this to sign in after your first visit.</p>
+            {passwordError && (
+              <p role="alert" style={errorStyle}>
+                {passwordError}
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+              <Button type="button" variant="ghost" onClick={retreat}>
+                Back
+              </Button>
+              <Button type="button" variant="primary" fullWidth onClick={advance}>
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* ─── Step 5: House rules ─── */}
+        {step === 5 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <span style={labelStyle}>The rules of the floor.</span>
             <div

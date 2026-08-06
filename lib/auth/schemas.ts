@@ -16,11 +16,29 @@ export const verifyOtpSchema = z.object({
   token: z.string().length(6, 'The code is 6 digits.').regex(/^\d+$/, 'Digits only.'),
 })
 
+export const passwordSchema = z.string().min(8, 'Password must be at least 8 characters.')
+
+export const setPasswordSchema = z
+  .object({
+    password: passwordSchema,
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: 'Passwords do not match.',
+    path: ['confirmPassword'],
+  })
+
+export const signInWithPasswordSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1, 'Enter your password.'),
+})
+
 export const onboardingSchema = z.object({
   displayName: z.string().min(2, 'At least 2 characters.').max(40, 'Max 40 characters.'),
   program: z.string().max(60).optional(),
   yearLevel: z.coerce.number().int().min(1).max(6).optional(),
   avatarUrl: z.string().url().optional(),
+  password: passwordSchema,
 })
 
 export type SendOtpInput = z.infer<typeof sendOtpSchema>
