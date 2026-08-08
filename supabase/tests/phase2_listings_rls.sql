@@ -1,6 +1,14 @@
 -- supabase/tests/phase2_listings_rls.sql
+-- Assertions: 28 (plan must match exactly). Tests 1-22 predate the
+-- two-identity functional-proof convention established from
+-- phase4_offers_rls.sql onward; the block-hides-listing invariant (line
+-- 110-115 below) was only ever proven by regex-matching the policy's SQL
+-- text. The Phase 8 RLS-audit backfill (tests 23-28, appended near the end
+-- of this file) adds real two-session functional coverage for draft-listing
+-- visibility, listing_images/listing_wants following their parent's
+-- visibility, and an actual block hiding an active listing.
 begin;
-select plan(22);
+select plan(28);
 
 -- ─── Read grants ───
 -- has_table_privilege/has_function_privilege are native Postgres functions
@@ -114,6 +122,74 @@ select matches(
   'listings SELECT policy calls is_blocked_by(), not a blocks subquery that RLS would silently hide'
 );
 
+-- ═══ functional RLS (Phase 8 audit backfill) ═══
+-- Fixtures: a draft listing owned by 1111, an active listing owned by 2222,
+-- plus one image and one want on the draft — direct inserts as the
+-- unrestricted test-runner role (authenticated has zero direct INSERT on
+-- any of these three tables, per the revokes above).
+insert into public.listings (id, code, owner_id, intent, title, status)
+values
+  ('88888888-8888-8888-8888-888888888201'::uuid, 'BA-9201',
+   '11111111-1111-1111-1111-111111111111'::uuid, 'give', 'Fixture draft listing', 'draft'),
+  ('88888888-8888-8888-8888-888888888202'::uuid, 'BA-9202',
+   '22222222-2222-2222-2222-222222222222'::uuid, 'give', 'Fixture active listing owned by 2222', 'active');
+
+insert into public.listing_images (listing_id, storage_path, position)
+values ('88888888-8888-8888-8888-888888888201'::uuid, '11111111-1111-1111-1111-111111111111/fixture.jpg', 0);
+
+insert into public.listing_wants (listing_id, label, position)
+values ('88888888-8888-8888-8888-888888888201'::uuid, 'Anything useful', 0);
+
+select set_config('role', 'authenticated', true);
+select set_config('request.jwt.claims', json_build_object('sub', '11111111-1111-1111-1111-111111111111')::text, true);
+select is(
+  (select count(*)::int from public.listings where id = '88888888-8888-8888-8888-888888888201'::uuid),
+  1,
+  'the owner can see their own draft listing'
+);
+
+select set_config('request.jwt.claims', json_build_object('sub', '22222222-2222-2222-2222-222222222222')::text, true);
+select is(
+  (select count(*)::int from public.listings where id = '88888888-8888-8888-8888-888888888201'::uuid),
+  0,
+  'a draft listing is invisible to a non-owner'
+);
+select is(
+  (select count(*)::int from public.listing_images where listing_id = '88888888-8888-8888-8888-888888888201'::uuid),
+  0,
+  'listing_images of a draft listing are invisible to a non-owner (visibility follows the parent listing)'
+);
+
+select set_config('request.jwt.claims', json_build_object('sub', '11111111-1111-1111-1111-111111111111')::text, true);
+select is(
+  (select count(*)::int from public.listing_images where listing_id = '88888888-8888-8888-8888-888888888201'::uuid),
+  1,
+  'the owner can see their own draft listing''s images'
+);
+select is(
+  (select count(*)::int from public.listing_wants where listing_id = '88888888-8888-8888-8888-888888888201'::uuid),
+  1,
+  'the owner can see their own draft listing''s wants'
+);
+
+-- Block hides an otherwise-visible active listing — the real query-level
+-- proof that the "is_blocked_by(), not a raw subquery" assertion above only
+-- proved by matching policy text. reset role for the direct blocks insert
+-- (blocks has zero direct grant for authenticated beyond its own RLS-scoped
+-- policy, and inserting as 2222 here isn't the point of this assertion).
+reset role;
+insert into public.blocks (blocker_id, blocked_id) values (
+  '22222222-2222-2222-2222-222222222222'::uuid, '11111111-1111-1111-1111-111111111111'::uuid
+);
+select set_config('role', 'authenticated', true);
+select set_config('request.jwt.claims', json_build_object('sub', '11111111-1111-1111-1111-111111111111')::text, true);
+select is(
+  (select count(*)::int from public.listings where id = '88888888-8888-8888-8888-888888888202'::uuid),
+  0,
+  'a block hides the blocker''s active listing from the blocked user'
+);
+
+reset role;
 select * from finish();
 rollback;
 

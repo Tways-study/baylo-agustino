@@ -2,10 +2,17 @@
 -- Phase 1 pgTAP tests: RLS and column-level security proofs
 --
 -- Run with: supabase test db
--- Assertions: 15 (plan must match exactly)
+-- Assertions: 25 (plan must match exactly). Tests 1-15 predate the
+-- two-identity functional-proof convention established from
+-- phase4_offers_rls.sql onward (set_config('role', 'authenticated', true) +
+-- set_config('request.jwt.claims', ...) to simulate a real caller, then
+-- query/insert as that identity). Tests 16-25 (Phase 8 RLS-audit backfill)
+-- add that functional coverage for blocks, policy_acceptances, and the
+-- block-hides-profile behavior that test 15 only proved indirectly via a
+-- regex match on the policy's SQL text.
 
 begin;
-select plan(15);
+select plan(25);
 
 -- ─── 1. Domain helper: exact match passes ───────────────────────────────────
 select ok(
@@ -130,5 +137,90 @@ select matches(
   'profiles SELECT policy calls is_blocked_by(), not a blocks subquery that RLS would silently hide'
 );
 
+-- ═══ functional RLS: blocks (Phase 8 audit backfill) ═══
+-- Test 14 above inserted a 1111->2222 block row directly as the unrestricted
+-- postgres role (no role switch had happened yet at that point in the file),
+-- which proves nothing about RLS enforcement for the authenticated role
+-- itself. These assertions simulate real callers via set_config, the
+-- convention every phase from 4 onward uses (see phase6_trust_safety.sql).
+select set_config('role', 'authenticated', true);
+select set_config('request.jwt.claims', json_build_object('sub', '11111111-1111-1111-1111-111111111111')::text, true);
+
+select lives_ok(
+  $$ insert into public.blocks (blocker_id, blocked_id) values ('11111111-1111-1111-1111-111111111111'::uuid, '44444444-4444-4444-4444-444444444444'::uuid) $$,
+  'a user can insert their own block row (blocker_id = auth.uid())'
+);
+
+-- The with check on "users manage own blocks" requires auth.uid() = blocker_id;
+-- inserting a row naming someone else as blocker_id must be rejected with the
+-- standard RLS violation SQLSTATE. 4-arg throws_ok form used deliberately —
+-- see phase4_offers_rls.sql's note on why a bare 3-arg (sql, errcode,
+-- description) call resolves to the wrong pgTAP overload.
+select throws_ok(
+  $$ insert into public.blocks (blocker_id, blocked_id) values ('22222222-2222-2222-2222-222222222222'::uuid, '11111111-1111-1111-1111-111111111111'::uuid) $$,
+  '42501', NULL,
+  'a user cannot insert a block row naming someone else as blocker_id'
+);
+
+select is(
+  (select count(*)::int from public.blocks where blocker_id = '11111111-1111-1111-1111-111111111111'::uuid),
+  2,
+  'the blocker can see their own block rows (fixture 1111->2222 plus the 1111->4444 insert above)'
+);
+
+select set_config('request.jwt.claims', json_build_object('sub', '22222222-2222-2222-2222-222222222222')::text, true);
+select is(
+  (select count(*)::int from public.blocks where blocker_id = '11111111-1111-1111-1111-111111111111'::uuid),
+  0,
+  '"users manage own blocks" hides another user''s block rows even from the person who was blocked'
+);
+
+-- ═══ functional RLS: policy_acceptances (Phase 8 audit backfill) ═══
+select set_config('request.jwt.claims', json_build_object('sub', '11111111-1111-1111-1111-111111111111')::text, true);
+select lives_ok(
+  $$ insert into public.policy_acceptances (user_id, policy_version) values ('11111111-1111-1111-1111-111111111111'::uuid, 1) $$,
+  'a user can insert their own policy_acceptances row'
+);
+select throws_ok(
+  $$ insert into public.policy_acceptances (user_id, policy_version) values ('22222222-2222-2222-2222-222222222222'::uuid, 1) $$,
+  '42501', NULL,
+  'a user cannot insert a policy_acceptances row naming someone else as user_id'
+);
+
+select set_config('request.jwt.claims', json_build_object('sub', '22222222-2222-2222-2222-222222222222')::text, true);
+select is(
+  (select count(*)::int from public.policy_acceptances where user_id = '11111111-1111-1111-1111-111111111111'::uuid),
+  0,
+  'a user cannot see another user''s policy_acceptances row'
+);
+select set_config('request.jwt.claims', json_build_object('sub', '11111111-1111-1111-1111-111111111111')::text, true);
+select is(
+  (select count(*)::int from public.policy_acceptances where user_id = '11111111-1111-1111-1111-111111111111'::uuid),
+  1,
+  'a user can see their own policy_acceptances row'
+);
+
+-- ═══ functional RLS: profiles hidden by a block, in only one direction ═══
+-- The "profiles readable by authenticated" policy checks
+-- is_blocked_by(profiles.id, auth.uid()) — i.e. "has the profile's OWNER
+-- blocked this VIEWER". With the 1111->2222 block from test 14: 2222 (the
+-- blocked party) loses visibility into 1111's profile, but 1111 (the
+-- blocker) keeps visibility into 2222's — blocking hides yourself from
+-- someone, it does not hide them from you. This is the actual functional
+-- proof that test 15's regex match on the policy's SQL text stood in for.
+select set_config('request.jwt.claims', json_build_object('sub', '22222222-2222-2222-2222-222222222222')::text, true);
+select is(
+  (select count(*)::int from public.profiles where id = '11111111-1111-1111-1111-111111111111'::uuid),
+  0,
+  'a blocked user cannot see the profile of the user who blocked them'
+);
+select set_config('request.jwt.claims', json_build_object('sub', '11111111-1111-1111-1111-111111111111')::text, true);
+select is(
+  (select count(*)::int from public.profiles where id = '22222222-2222-2222-2222-222222222222'::uuid),
+  1,
+  'the blocker can still see the profile of the user they blocked'
+);
+
+reset role;
 select * from finish();
 rollback;
