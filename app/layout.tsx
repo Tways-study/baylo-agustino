@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Bricolage_Grotesque, IBM_Plex_Mono, Plus_Jakarta_Sans } from 'next/font/google'
+import { ServiceWorkerRegistration } from './ServiceWorkerRegistration'
+import { MotionProvider } from './MotionProvider'
 import './globals.css'
 
 const bricolage = Bricolage_Grotesque({
@@ -55,23 +57,12 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-touch-fullscreen" content="yes" />
-        <link rel="apple-touch-icon" href="/icons/icon-192.svg" />
+        {/* Safari does not support SVG for apple-touch-icon at all — must be PNG. */}
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
       </head>
       <body>
-        {children}
-        {process.env.NODE_ENV === 'production' && (
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `
-                if ('serviceWorker' in navigator) {
-                  window.addEventListener('load', function() {
-                    navigator.serviceWorker.register('/sw.js');
-                  });
-                }
-              `,
-            }}
-          />
-        )}
+        <MotionProvider>{children}</MotionProvider>
+        <ServiceWorkerRegistration />
       </body>
     </html>
   )

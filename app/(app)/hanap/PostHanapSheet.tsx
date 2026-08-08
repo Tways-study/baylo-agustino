@@ -40,7 +40,7 @@ export function PostHanapSheet({ open, onClose }: PostHanapSheetProps) {
             required
             maxLength={120}
             placeholder="e.g. Chem lab manual, 2nd year"
-            className="w-full rounded-none border px-3 py-2 text-sm font-body bg-transparent outline-none focus:ring-0"
+            className="w-full rounded-none border px-3 py-2 text-sm font-body bg-transparent"
             style={{
               border: 'var(--stroke)',
               color: 'var(--ink)',
@@ -62,7 +62,7 @@ export function PostHanapSheet({ open, onClose }: PostHanapSheetProps) {
             name="offering"
             maxLength={200}
             placeholder="e.g. Lab gown, size M"
-            className="w-full rounded-none border px-3 py-2 text-sm font-body bg-transparent outline-none"
+            className="w-full rounded-none border px-3 py-2 text-sm font-body bg-transparent"
             style={{
               border: 'var(--stroke)',
               color: 'var(--ink)',
@@ -95,7 +95,7 @@ export function PostHanapSheet({ open, onClose }: PostHanapSheetProps) {
               type="number"
               min="1"
               placeholder="0"
-              className="flex-1 px-3 py-2 text-sm font-body bg-transparent outline-none"
+              className="flex-1 px-3 py-2 text-sm font-body bg-transparent"
               style={{ color: 'var(--ink)' }}
             />
           </div>

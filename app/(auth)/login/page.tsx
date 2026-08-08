@@ -350,6 +350,24 @@ export default function LoginPage() {
           </button>
         </div>
       )}
+
+      <p
+        style={{
+          fontFamily: 'var(--font-body)',
+          fontSize: '0.75rem',
+          color: 'var(--ink-45)',
+          textAlign: 'center',
+          margin: 0,
+        }}
+      >
+        <a href="/legal/privacy" style={{ color: 'inherit' }}>
+          Privacy
+        </a>
+        {' · '}
+        <a href="/legal/terms" style={{ color: 'inherit' }}>
+          Terms
+        </a>
+      </p>
     </div>
   )
 }

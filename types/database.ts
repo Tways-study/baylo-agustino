@@ -361,7 +361,7 @@ export interface Database {
           offer_id: string
           spot_id: number
           scheduled_at: string
-          proposed_by: string
+          proposed_by: string | null
           confirmed_by_offerer: boolean
           confirmed_by_owner: boolean
           created_at: string
@@ -371,7 +371,7 @@ export interface Database {
           offer_id: string
           spot_id: number
           scheduled_at: string
-          proposed_by: string
+          proposed_by?: string | null
           confirmed_by_offerer?: boolean
           confirmed_by_owner?: boolean
           created_at?: string
@@ -435,7 +435,7 @@ export interface Database {
       offer_cancellations: {
         Row: {
           offer_id: string
-          cancelled_by: string
+          cancelled_by: string | null
           reason_code: string
           reason_text: string | null
           was_late: boolean
@@ -443,7 +443,7 @@ export interface Database {
         }
         Insert: {
           offer_id: string
-          cancelled_by: string
+          cancelled_by?: string | null
           reason_code: string
           reason_text?: string | null
           was_late: boolean
@@ -610,6 +610,18 @@ export interface Database {
       user_is_registered: {
         Args: { p_email: string }
         Returns: boolean
+      }
+      check_and_log_email_send: {
+        Args: { p_email: string; p_action: 'otp' | 'password_reset' }
+        Returns: undefined
+      }
+      check_login_rate_limit: {
+        Args: { p_email: string }
+        Returns: undefined
+      }
+      record_login_attempt: {
+        Args: { p_email: string; p_success: boolean }
+        Returns: undefined
       }
     }
     Enums: {

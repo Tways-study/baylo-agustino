@@ -1,10 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { setPasswordSchema } from '@/lib/auth/schemas'
-import { Button } from '@/components/ui'
+import { Button, EmptyState } from '@/components/ui'
+
+type SessionState = 'checking' | 'ready' | 'expired'
 
 const inputStyle: React.CSSProperties = {
   fontFamily: 'var(--font-body)',
@@ -34,6 +36,28 @@ export default function ResetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [isPending, setIsPending] = useState(false)
+  const [sessionState, setSessionState] = useState<SessionState>('checking')
+
+  useEffect(() => {
+    const supabase = createClient()
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSessionState(session ? 'ready' : 'expired')
+    })
+
+    // A recovery link's session is parsed from the URL asynchronously by the
+    // Supabase client — this catches the case where getSession() above ran
+    // before that finished.
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setSessionState('ready')
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -55,6 +79,21 @@ export default function ResetPasswordPage() {
     }
 
     router.push('/')
+  }
+
+  if (sessionState === 'checking') {
+    return null
+  }
+
+  if (sessionState === 'expired') {
+    return (
+      <EmptyState
+        headline="This link has expired or was already used."
+        body="Request a new password reset link and try again."
+        ctaLabel="Back to login"
+        ctaHref="/login"
+      />
+    )
   }
 
   return (

@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Maskable icon: OS-applied masks (circle, squircle, rounded-square) can
+       crop anywhere outside the centered 80%-diameter "safe zone" circle
+       (per W3C's maskable-icon guidance), so the background must be
+       full-bleed with no transparency, and the border+wordmark are scaled
+       down (~55% of the plain icon's box) so their corners stay inside that
+       safe circle instead of getting clipped. -->
+  <rect width="512" height="512" fill="#CC0000"/>
+  <rect x="116" y="116" width="280" height="280" fill="none" stroke="#FFCC00" stroke-width="6"/>
+  <text
+    x="50%"
+    y="55%"
+    dominant-baseline="middle"
+    text-anchor="middle"
+    font-family="monospace"
+    font-weight="bold"
+    font-size="86"
+    letter-spacing="7"
+    fill="#FFCC00"
+  >BA</text>
+</svg>

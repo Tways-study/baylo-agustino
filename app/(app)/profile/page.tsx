@@ -3,6 +3,7 @@ import { getMyListings } from '@/lib/listings/queries'
 import { getSavedListings } from '@/lib/discovery/queries'
 import { getSignedImageUrls } from '@/lib/media/get-image-url'
 import { Ribbon, MiniListingRow, EmptyState } from '@/components/ui'
+import { LegalSection } from './LegalSection'
 
 export default async function ProfilePage() {
   const user = await getAuthUser()
@@ -72,6 +73,8 @@ export default async function ProfilePage() {
             )
           })
         )}
+
+        <LegalSection />
       </main>
     </>
   )

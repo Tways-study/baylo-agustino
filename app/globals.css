@@ -93,6 +93,24 @@ main {
   outline: none;
 }
 
+/* Respect the OS-level reduce-motion setting. The !important here is load-
+   bearing, not decorative: it's what lets this one rule also neutralize
+   inline `style={{ transition: '...' }}` (e.g. BalanceBeam) without a
+   component-specific change — a stylesheet rule with !important beats a
+   non-!important inline style regardless of origin. It does NOT reach
+   framer-motion's JS-driven spring animations (Sheet) — those are handled
+   separately via MotionConfig in app/MotionProvider.tsx. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* ═══════════════════════════════════════════════
    Typography utilities
    ═══════════════════════════════════════════════ */

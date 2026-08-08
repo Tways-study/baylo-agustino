@@ -29,6 +29,14 @@ export async function sendOtp(
     return { isReturning: true }
   }
 
+  const { error: rateLimitError } = await supabase.rpc('check_and_log_email_send', {
+    p_email: result.data.email,
+    p_action: 'otp',
+  })
+  if (rateLimitError) {
+    return { error: rateLimitError.message }
+  }
+
   const { error } = await supabase.auth.signInWithOtp({
     email: result.data.email,
     options: { shouldCreateUser: true },
@@ -88,9 +96,24 @@ export async function signInWithPassword(
   }
 
   const supabase = await createClient()
+
+  const { error: rateLimitError } = await supabase.rpc('check_login_rate_limit', {
+    p_email: result.data.email,
+  })
+  if (rateLimitError) {
+    return { error: rateLimitError.message }
+  }
+
   const { error } = await supabase.auth.signInWithPassword({
     email: result.data.email,
     password: result.data.password,
+  })
+
+  // Recorded before redirect() — it throws internally in Next.js, so any
+  // code after a successful redirect() call never runs.
+  await supabase.rpc('record_login_attempt', {
+    p_email: result.data.email,
+    p_success: !error,
   })
 
   if (error) {
@@ -111,6 +134,15 @@ export async function sendPasswordReset(
   }
 
   const supabase = await createClient()
+
+  const { error: rateLimitError } = await supabase.rpc('check_and_log_email_send', {
+    p_email: result.data.email,
+    p_action: 'password_reset',
+  })
+  if (rateLimitError) {
+    return { error: rateLimitError.message }
+  }
+
   const { error } = await supabase.auth.resetPasswordForEmail(result.data.email, {
     redirectTo: `${process.env['NEXT_PUBLIC_APP_URL']}/api/auth/callback?next=/reset-password`,
   })

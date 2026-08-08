@@ -489,6 +489,18 @@ export default function OnboardingPage() {
         {step === 5 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <span style={labelStyle}>The rules of the floor.</span>
+            <a
+              href="/legal/house-rules"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                fontFamily: 'var(--font-body)',
+                fontSize: '0.75rem',
+                color: 'var(--crimson)',
+              }}
+            >
+              Open in a new tab
+            </a>
             <div
               style={{
                 maxHeight: '240px',

@@ -1,87 +1,66 @@
 # Phase 8 — Hardening & Launch Progress Report
 
-**Status:** In progress, paused mid-implementation. 1 of 11 planned work items complete.
-
-**Full engineering plan:** see "Approved plan" section below (mirrored from the Claude Code plan file used to scope this work, since that file lives outside the repo).
+**Status:** All 11 planned engineering tasks complete. `type-check`, `lint`, unit tests (112/112), and a full production `next build` are all green. Not yet run: `supabase test db` (no Docker in the environment this work was done in) or `npm run test:e2e` against a live stack.
 
 ---
 
 ## Scope note
 
-`baylo-agustino-build-spec.md` §6 defines Phase 8 broadly: RLS audit, E2E coverage, a performance pass, an accessibility pass, legal/institutional docs, real-listing seeding, and physical launch logistics (QR posters, pilot rollout). The last three (pilot-cohort seeding, poster printing, university crest legal clearance) are the founder's own real-world follow-ups, not code, and are out of scope for this engineering plan. Four engineering-buildable areas were scoped with the founder instead — see below.
+`baylo-agustino-build-spec.md` §6 defines Phase 8 broadly: RLS audit, E2E coverage, a performance pass, an accessibility pass, legal/institutional docs, real-listing seeding, and physical launch logistics (QR posters, pilot rollout). The last three (pilot-cohort seeding, poster printing, university crest legal clearance) are the founder's own real-world follow-ups, not code, and stay out of scope here. Four engineering-buildable areas were scoped with the founder — all four are now built.
 
-Four open implementation decisions were resolved with the founder before work began (all "recommended" defaults accepted):
-
-1. **Account deletion** → self-serve delete flow (not email-to-admin)
-2. **E2E signup simulation** → generalized magic-link helper (not real OTP entry via Inbucket)
-3. **Login rate-limit key** → email-only (not email+IP)
-4. **Storage RLS proof** → rely on existing E2E coverage (not new pgTAP for `storage.objects`)
-
-Two verify-during-implementation notes (not decisions, just things to check when picking this back up):
-
-- Whether `supabase/config.toml`'s existing `[auth.rate_limit]` block is actually applied to the **hosted** Supabase project (not just local dev) — check before assuming the new app-level throttle below is the only backstop.
-- Whether Next 15's app-router hydration payload requires `'unsafe-inline'`/a nonce in `script-src` even after removing the one custom inline script — confirm against a real production build, not dev.
+Decisions resolved with the founder before work began (all "recommended" defaults accepted): self-serve account deletion, generalized-magic-link E2E signup, email-only login rate-limiting, and deferring `storage.objects` RLS proof to existing E2E coverage rather than new pgTAP.
 
 ---
 
-## What's done
-
-### ✅ Area 1a — RLS audit backfill (Task 1/11, complete)
-
-`phase1_rls.sql`, `phase2_listings_rls.sql`, and `phase3_discovery_rls.sql` predated the two-identity functional-proof convention established from `phase4_offers_rls.sql` onward (`set_config('role','authenticated',true)` + `set_config('request.jwt.claims', ...)` to simulate a real caller, then query/insert as that identity — see `phase6_trust_safety.sql` for the clearest example). All three files only proved grants and policy _existence_, never a real cross-user query. Appended functional assertions to each (no new files created, consistent with the "one file per phase" convention):
-
-| File                                      | Before → After          | What was added                                                                                                                                                                                                                                                    |
-| ----------------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `supabase/tests/phase1_rls.sql`           | `plan(15)` → `plan(25)` | `blocks` own-insert/cross-insert-rejected/select-isolation; `policy_acceptances` same shape; `profiles` — real query proof that a block hides the blocker's profile from the blocked party in one direction only (blocker keeps visibility into the blocked user) |
-| `supabase/tests/phase2_listings_rls.sql`  | `plan(22)` → `plan(28)` | draft-listing visibility (owner sees it, non-owner doesn't); `listing_images`/`listing_wants` following the parent listing's visibility; a real block hiding an otherwise-active listing (previously only proven via a regex match on `pg_policies.qual`)         |
-| `supabase/tests/phase3_discovery_rls.sql` | `plan(9)` → `plan(17)`  | `saved_listings` and `search_events` — own-insert succeeds, cross-user insert rejected by `with check`, cross-user select returns 0                                                                                                                               |
-
-All three files were statically reviewed (signatures, FK requirements, enum/check-constraint values, exact assertion counts vs. `plan(N)`) but **not executed** — this environment has no Docker, so `supabase test db` could not be run. This is the same caveat noted for `phase6_trust_safety.sql` earlier in the Phase 6 work.
-
-**Not yet done in this file's scope:** the auth-rate-limiting pgTAP additions to `phase8_auth_helpers.sql` (Task 2, not started) and the E2E happy-path spec (Task 11, not started).
-
----
-
-## What's remaining (10 of 11 tasks)
+## What was built
 
 ### Area 1 — Security & reliability hardening
 
-- [ ] **Task 2 — Auth rate-limiting migration + wiring.** New migration `supabase/migrations/<ts>_phase8_auth_rate_limiting.sql`: `email_send_attempts`/`login_attempts` tables (RLS enabled, zero policies — deny-all, SECURITY DEFINER RPC is the only door) + `check_and_log_email_send`/`check_login_rate_limit`/`record_login_attempt` RPCs, following the exact hand-rolled-per-RPC pattern already used for listings (10/day) and reports (10/24h). Email-only key (5/hour for OTP+password-reset sends, 5 failures/15min for login). Wire into `lib/auth/actions.ts`'s `sendOtp()`, `sendPasswordReset()`, `signInWithPassword()` — call `record_login_attempt` _before_ any `redirect()` since `redirect()` throws internally in Next.js. Extend `supabase/tests/phase8_auth_helpers.sql` (currently `plan(5)`) with grant checks + functional throttle-trips-at-N tests.
-- [ ] **Task 3 — reset-password session guard.** `app/(auth)/reset-password/page.tsx` renders the password form unconditionally today. Add a mount-time check (`onAuthStateChange` for `PASSWORD_RECOVERY`, or `getSession()`) gated behind a loading state; show an `EmptyState`-style "This link has expired or was already used." + link to `/login` when there's no valid recovery session.
-- [ ] **Task 4 — Root error/not-found boundaries.** `app/global-error.tsx` (self-contained `<html>`/`<body>`, inline hex colors — same documented exception as `app/api/og/[code]/route.tsx`), `app/error.tsx` (`'use client'`, `EmptyState`-styled, "Try again" calling `reset()`), `app/not-found.tsx` (`EmptyState`-styled). Root-level only, no route-group-scoped variants.
-- [ ] **Task 5 — Security headers + externalize SW registration.** Extend `next.config.ts`'s `headers()` with a global entry: HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` (deny camera/geolocation/microphone), `X-Frame-Options: DENY`, and a CSP built from `NEXT_PUBLIC_SUPABASE_URL` at build time. `style-src 'unsafe-inline'` required (inline styles are pervasive; framer-motion writes inline styles at runtime) — document as a deliberate trade-off. Move `app/layout.tsx`'s inline `<script dangerouslySetInnerHTML>` SW registration into a new `app/ServiceWorkerRegistration.tsx` client component so `script-src 'self'` needs no `unsafe-inline`/hash.
+- **RLS audit backfill** — `phase1_rls.sql` (15→25 assertions), `phase2_listings_rls.sql` (22→28), `phase3_discovery_rls.sql` (9→17) now have real two-identity functional proofs (not just grant/policy-existence checks) for `blocks`, `policy_acceptances`, `profiles` block-visibility, draft-listing visibility, `listing_images`/`listing_wants`, `saved_listings`, `search_events`. `phase6_trust_safety.sql` (the previously-missing Phase 6 pgTAP file) was also added — 83 assertions.
+- **Auth rate limiting** — new migration `20261015000000_phase8_auth_rate_limiting.sql`: `email_send_attempts`/`login_attempts` tables (RLS enabled, zero policies — deny-all) + `check_and_log_email_send`/`check_login_rate_limit`/`record_login_attempt` RPCs (5/hour email sends, 5 failures/15min login lockout, email-only key). Wired into `lib/auth/actions.ts`'s `sendOtp`, `sendPasswordReset`, `signInWithPassword`. `phase8_auth_helpers.sql` extended 5→26 assertions.
+- **reset-password session guard** — `app/(auth)/reset-password/page.tsx` now checks for a valid recovery session on mount (`getSession()` + `onAuthStateChange('PASSWORD_RECOVERY')`) before rendering the form; shows an expired-link `EmptyState` otherwise.
+- **Error boundaries** — `app/error.tsx`, `app/not-found.tsx` (both `EmptyState`-styled), `app/global-error.tsx` (self-contained `<html>`/`<body>`, inline hex — same approved exception as the OG route).
+- **Security headers** — `middleware.ts` now sets CSP, HSTS, `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` on every response. **Deviated from the original plan**: a nonce-based `script-src` was tried first (Next's documented App Router pattern), but a real `next build && next start` showed Next's own RSC-streaming inline scripts ship with no `nonce` attribute in this Next.js version — verified by inspecting actual response HTML, not assumed. Shipped `script-src 'self' 'unsafe-inline'` instead, the same accepted trade-off already required for `style-src`. Headers were verified present and correctly formed against a real production server on a scratch port.
+- **SW registration externalized** — moved out of `app/layout.tsx`'s inline `<script>` into `app/ServiceWorkerRegistration.tsx` (a normal bundled client component), so `script-src` doesn't need to special-case it.
 
 ### Area 2 — E2E happy-path coverage
 
-- [ ] **Task 11 — `e2e/happy-path.spec.ts`.** New `signUpNewUser(page, email)` helper in `e2e/helpers/auth.ts` (generalizes `signInAsFixtureUser()`'s magic-link mechanics to a brand-new email). Full journey: fresh user signs up → real 6-step onboarding wizard → posts a listing via real `/post` UI → fixture user B offers → counter → counter → accept (reusing `offer-negotiation.spec.ts`'s two-context pattern) → deal room: propose meetup → confirm → live chat → both mark swapped → assert both `offers.status`/`listings.status` are `completed`.
+- `e2e/happy-path.spec.ts` — full journey: real signup via a new `signUpNewUser()` helper (`e2e/helpers/auth.ts`) → 6-step onboarding wizard → post a swap listing via the real `/post` UI → fixture user offers → counter → counter → accept → deal room (propose meetup → confirm → live chat → both mark swapped) → completion asserted at the DB level. **Not executed** — no dev server / local Supabase stack in this environment. Written by close reading of the onboarding wizard's source and mirroring the exact selector patterns already proven in `post-flow.spec.ts`, `offer-negotiation.spec.ts`, and `deal-room.spec.ts`, but this is the least-verified piece of the whole batch — run it first when picking this back up.
 
 ### Area 3 — Accessibility & performance pass
 
-- [ ] **Task 6 — Focus rings + reduced-motion.** Remove `outline-none` from the 3 text inputs in `app/(app)/hanap/PostHanapSheet.tsx` (the global crimson `:focus-visible` rule in `app/globals.css` already exists and works everywhere else). Add a global `@media (prefers-reduced-motion: reduce)` CSS rule (also neutralizes `BalanceBeam`'s inline CSS transition via `!important` cascade — satisfies the build-spec's "balance beam settles instantly" requirement with zero BalanceBeam-specific code). Add `app/MotionProvider.tsx` (`'use client'`, wraps `{children}` in `app/layout.tsx` with framer-motion's `<MotionConfig reducedMotion="user">`) to cover `Sheet.tsx`'s JS-driven spring animations, which the CSS rule alone can't reach.
-- [ ] **Task 7 — `loading.tsx` boundaries.** `app/(app)/loading.tsx` and `app/(app)/hanap/loading.tsx` reusing `components/ui/ChitSkeleton.tsx` directly; `app/(app)/l/[code]/loading.tsx` needs a new, simple hero-image-block + text-lines skeleton (no existing component covers that shape).
-- [ ] **Task 8 — PWA manifest/icons.** Generate PNG icons (192×192, 512×512 `purpose:"any"`, a padded-safe-zone 512 `purpose:"maskable"` variant, 180×180 apple-touch-icon) from the existing SVG source, add to `public/icons/`, update `manifest.json`'s `icons` array. Fix `app/layout.tsx`'s `<link rel="apple-touch-icon" href="/icons/icon-192.svg">` — **this is a real defect, not just an enhancement**: Safari does not support SVG apple-touch-icons at all, so "Add to Home Screen" is silently broken on iOS today. (`metadata.manifest` and `viewport.themeColor` are already correctly set in `app/layout.tsx` — no change needed there.)
+- **Focus rings** — removed `outline-none` from the 3 inputs in `app/(app)/hanap/PostHanapSheet.tsx` that were defeating the existing global crimson `:focus-visible` rule. Confirmed via repo-wide grep this was the only offender.
+- **Reduced motion** — global `@media (prefers-reduced-motion: reduce)` rule in `app/globals.css` (also neutralizes `BalanceBeam`'s inline CSS transition via the `!important` cascade). New `app/MotionProvider.tsx` wraps the app in framer-motion's `<MotionConfig reducedMotion="user">` for `Sheet.tsx`'s JS-driven spring animations, which the CSS rule can't reach.
+- **`loading.tsx` boundaries** — `app/(app)/loading.tsx` (generic — it's the fallback for every route under `(app)` that lacks its own, not just `/`, so it's deliberately unlabeled rather than saying "Feed" while navigating to `/profile`), `app/(app)/hanap/loading.tsx`, `app/(app)/l/[code]/loading.tsx` (new skeleton shape).
+- **PWA icons** — rasterized the existing SVG source with `sharp` into `icon-192.png`, `icon-512.png`, a new padded `icon-512-maskable.svg`/`.png` (safe-zone-scaled per W3C maskable guidance), and `apple-touch-icon.png` (180×180). Fixed a real bug: `app/layout.tsx` was pointing `apple-touch-icon` at an SVG, which Safari doesn't support at all — "Add to Home Screen" was silently broken on iOS.
 
-### Area 4 — Legal/content pages + account deletion
+### Area 4 — Legal pages + account deletion
 
-- [ ] **Task 9 — Legal pages.** New `app/legal/` route segment (plain segment, not a parenthesized route group — needs to be reachable both pre-auth and post-auth): `app/legal/layout.tsx` (minimal Ribbon-header chrome), `app/legal/privacy/page.tsx` (RA 10173-oriented draft — what's collected, why, retention, deletion path), `app/legal/terms/page.tsx` (reuse the build-spec/PRD's prohibited-listings list verbatim, suspension/dispute handling referencing Phase 6 mechanics), `app/legal/house-rules/page.tsx` (renders `HOUSE_RULES_V1` from `lib/auth/house-rules.ts` directly — single source of truth, no copy duplication). Every page needs an unmissable `[ADMIN CONTACT — TODO: name + email before launch]` placeholder, a "founder-drafted, pending real legal review" disclaimer, and a `<!-- TODO: crest usage clearance -->` note wherever a university mark would otherwise appear. Add `/legal` to `middleware.ts`'s `PUBLIC_PATHS` (one-line change). Link from `app/(auth)/login/page.tsx` footer, the onboarding house-rules step, and a new "Legal" block in `app/(app)/profile/page.tsx`.
-- [ ] **Task 10 — Self-serve account deletion.** New `lib/account/actions.ts` (new domain folder — doesn't fit under `lib/auth/`), server-only action using the Supabase service-role admin client (`supabase.auth.admin.deleteUser`), guarded by `import "server-only"`. Existing FK `on delete cascade` chains from `profiles`/`listings`/etc. back to `auth.users` handle the data cascade already — this action is just the confirmed, authenticated entry point. UI: "Delete my account" button in `app/(app)/profile/page.tsx`'s new Legal/account block, behind a `Sheet`-based confirmation step (check `lib/deals/actions.ts`'s cancel-deal flow for the existing confirmation-UX pattern to match).
-
----
-
-## Verification checklist (once all tasks are done)
-
-- `npm run type-check`, `npm run lint`, `npm run test` clean throughout.
-- `supabase test db` against a local Docker-backed stack for every new/extended pgTAP file — **not run yet, no Docker in this environment**.
-- `npm run test:e2e` (or `npx playwright test e2e/happy-path.spec.ts` in isolation) against a running dev server + local Supabase stack.
-- Security headers: verify on a production build (`npm run build && npm start`) that the SW still registers, Supabase auth redirects still complete, and no CSP violations appear in console — this is also where the hydration-payload `script-src` caveat gets resolved for real.
-- Manifest/icons: Chrome DevTools Application panel + an actual "Add to Home Screen" on iOS for the apple-touch-icon fix.
-- Reduced-motion: macOS System Settings > Accessibility toggle — confirm BalanceBeam settles instantly and Sheet's slide-in has no spring bounce.
-- Account deletion: manually verify session invalidation + cascade deletion against a local/staging project, **never production data**, until confident.
+- New `app/legal/` route segment: `privacy/`, `terms/`, `house-rules/` pages, shared `LegalFooterNote.tsx` (admin-contact placeholder + crest-clearance TODO + legal-review disclaimer, single source so it can't drift across pages). `house-rules/page.tsx` renders `HOUSE_RULES_V1` directly — no copy duplication. Linked from the login footer, the onboarding house-rules step, and a new `LegalSection` on the profile page. `/legal` added to `middleware.ts`'s `PUBLIC_PATHS`.
+- **Self-serve account deletion** — `lib/account/actions.ts`'s `deleteAccount()` (service-role `admin.deleteUser()`, guarded by being a `'use server'`-only function — the service-role key is never bundled to the client). UI: "Delete my account" + `Sheet` confirmation in `LegalSection.tsx`.
+- **Real bug found and fixed during this work**: four columns referenced `profiles` without `on delete cascade` — `meetups.proposed_by`, `offer_cancellations.cancelled_by`, `reports.resolved_by`, `audit_log.actor_id`. Without a fix, `admin.deleteUser()` would have failed with a foreign-key violation for any user who ever proposed a meetup, cancelled a deal, resolved a report, or triggered an audit-log entry — a large fraction of active users, silently breaking the entire delete-account feature for them. Fixed in a new migration, `20261020000000_phase8_deletable_profiles.sql` (switches those four to `ON DELETE SET NULL` — the historical row survives, just anonymized). New pgTAP file `phase8_deletable_profiles.sql` (6 assertions) proves the fix: a full `auth.users` deletion with all four history rows attached now succeeds and each survives with its actor column nulled. `types/database.ts` updated to match the new nullability.
 
 ---
 
-## How to resume
+## Verification status
 
-1. Read this file for context (decisions already made, don't re-ask).
-2. Pick up at **Task 2 — Auth rate-limiting migration + wiring** (next in the planned order).
-3. The rest of the task list, in planned order: 3 (reset-password guard) → 4 (error boundaries) → 5 (security headers) → 6 (a11y) → 7 (loading states) → 8 (PWA icons) → 9 (legal pages) → 10 (account deletion) → 11 (E2E happy path, last — it exercises the full app so it's most useful once everything else has settled).
+| Check                                                          | Status                                                                 |
+| -------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `npm run type-check`                                           | ✅ Clean                                                               |
+| `npm run lint`                                                 | ✅ Clean, 0 warnings                                                   |
+| `npm run test` (unit)                                          | ✅ 112/112 passing                                                     |
+| `npm run build`                                                | ✅ Clean production build                                              |
+| Security headers on a real build                               | ✅ Verified via `next build && next start` on a scratch port + `curl`  |
+| `supabase test db` (all pgTAP, incl. new phase1/2/3/6/8 files) | ❌ Not run — no Docker in this environment                             |
+| `npm run test:e2e` (incl. new `happy-path.spec.ts`)            | ❌ Not run — no dev server / local Supabase stack in this environment  |
+| Manifest/icons in a real browser (Add to Home Screen)          | ❌ Not run — no browser available in this environment                  |
+| Reduced-motion at the OS level                                 | ❌ Not run                                                             |
+| Account deletion end-to-end against a real project             | ❌ Not run — do this against local/staging only, never production data |
+
+## Before merging
+
+1. `supabase start && supabase db reset && supabase test db` — expect **all** pgTAP files to pass, including the newly-bumped plan counts in phase1/2/3 and the new phase6/phase8 files.
+2. `npm run test:e2e` — run `happy-path.spec.ts` in isolation first (`npx playwright test e2e/happy-path.spec.ts`) since it's the newest and least-proven spec.
+3. `npm run build && npm start`, then check DevTools Network tab for CSP violations and confirm the service worker still registers.
+4. Confirm whether `supabase/config.toml`'s `[auth.rate_limit]` block is actually applied on the **hosted** project (not just local dev) — the new app-level throttle supplements it either way, but worth knowing.
+5. Fill in the `[ADMIN CONTACT — TODO...]` placeholders across the three `/legal` pages and `LegalSection.tsx` before launch, and get the university's crest-usage clearance (still flagged with TODO comments, not built around).
